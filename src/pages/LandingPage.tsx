@@ -77,14 +77,14 @@ export function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-obsidian text-cool-grey font-sans relative selection:bg-signal-red selection:text-white overflow-x-hidden">
+    <div className="min-h-screen bg-obsidian text-cool-grey font-sans relative selection:bg-cre-500 selection:text-white overflow-x-hidden">
       {/* Global CSS Noise Overlay */}
       <div className="bg-noise" />
 
       {/* A. NAVBAR */}
       <nav className="relative z-20 flex items-center justify-between px-6 py-6 md:px-12">
         <div className="text-2xl font-bold font-sans tracking-tight text-white flex items-center gap-3">
-          <div className="w-8 h-8 bg-signal-red rounded animate-pulse-slow"></div>
+          <div className="w-8 h-8 bg-cre-500 rounded animate-pulse-slow"></div>
           CARDO
         </div>
         <Link 
@@ -104,7 +104,7 @@ export function LandingPage() {
             <h1 className="text-6xl sm:text-7xl md:text-8xl xl:text-9xl tracking-tighter uppercase font-bold text-white leading-[0.85] mb-4">
               Operate<br/>The
             </h1>
-            <h2 className="text-6xl sm:text-7xl md:text-8xl xl:text-[140px] font-serif italic text-signal-red leading-[0.8] mb-8 lg:-mr-20 z-20 mix-blend-screen">
+            <h2 className="text-6xl sm:text-7xl md:text-8xl xl:text-[140px] font-serif italic text-cre-500 leading-[0.8] mb-8 lg:-mr-20 z-20 mix-blend-screen">
               System.
             </h2>
             <p className="text-lg sm:text-xl max-w-lg mb-12 leading-relaxed text-cool-grey font-light">
@@ -113,7 +113,7 @@ export function LandingPage() {
             <div>
               <Link 
                 to="/login"
-                className="inline-flex items-center gap-4 px-8 py-5 bg-signal-red text-white uppercase font-bold text-sm tracking-widest rounded-full hover:scale-[1.03] transition-transform duration-300 shadow-2xl shadow-signal-red/20"
+                className="inline-flex items-center gap-4 px-8 py-5 bg-cre-500 text-white uppercase font-bold text-sm tracking-widest rounded-full hover:scale-[1.03] transition-transform duration-300 shadow-2xl shadow-cre-500/20"
               >
                 Deploy Cardo System <ArrowRight size={18} />
               </Link>
@@ -150,9 +150,9 @@ export function LandingPage() {
                 <Terminal size={14} className="text-cool-grey" />
                 <span className="text-[10px] font-mono text-cool-grey">audit_log.exe</span>
               </div>
-              <pre className="font-mono text-sm text-signal-red whitespace-pre-wrap min-h-[80px] leading-relaxed">
+              <pre className="font-mono text-sm text-cre-400 whitespace-pre-wrap min-h-[80px] leading-relaxed">
                 {telemetry}
-                <span className="inline-block w-2 h-4 bg-signal-red animate-pulse ml-1 align-middle"></span>
+                <span className="inline-block w-2 h-4 bg-cre-400 animate-pulse ml-1 align-middle"></span>
               </pre>
             </div>
 
@@ -164,7 +164,7 @@ export function LandingPage() {
               </div>
               <div className="grid grid-cols-4 gap-2 relative">
                 {[...Array(12)].map((_, i) => (
-                  <div key={i} className={`h-8 rounded-lg border border-white/5 ${i === 6 ? 'bg-signal-red/20 border-signal-red/50' : 'bg-white/[0.02]'}`}></div>
+                  <div key={i} className={`h-8 rounded-lg border border-white/5 ${i === 6 ? 'bg-cre-500/20 border-cre-500/50' : 'bg-white/[0.02]'}`}></div>
                 ))}
                 {/* Animated Cursor */}
                 <div className="absolute top-10 left-16 animate-[bounce_2s_infinite] pointer-events-none">
@@ -185,10 +185,10 @@ export function LandingPage() {
         <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-1000 max-w-5xl mx-auto px-6 md:px-12 text-center">
           <h3 className="text-3xl md:text-5xl font-serif italic text-white leading-tight mb-8">
             Most property management focuses on:<br/>
-            <span className="text-cool-grey not-italic font-sans font-light line-through decoration-signal-red decoration-2">reactive fixes.</span>
+            <span className="text-cool-grey not-italic font-sans font-light line-through decoration-cre-500 decoration-2">reactive fixes.</span>
           </h3>
           <p className="text-4xl md:text-6xl font-sans font-bold text-white uppercase tracking-tighter">
-            We focus on: <span className="text-signal-red">Accountability Loops.</span>
+            We focus on: <span className="text-cre-500">Accountability Loops.</span>
           </p>
         </div>
       </section>
@@ -206,8 +206,8 @@ export function LandingPage() {
 
           <div className="space-y-6">
             {/* Step 01 */}
-            <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-100 bg-black border border-white/10 p-10 rounded-[2rem] hover:scale-[1.03] hover:border-white/20 hover:shadow-2xl hover:shadow-signal-red/5">
-              <div className="text-signal-red font-mono text-sm mb-6">STEP 01</div>
+            <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-100 bg-black border border-white/10 p-10 rounded-[2rem] hover:scale-[1.03] hover:border-white/20 hover:shadow-2xl hover:shadow-cre-500/5">
+              <div className="text-cre-500 font-mono text-sm mb-6">STEP 01</div>
               <h3 className="text-3xl font-bold text-white mb-4">Standardize.</h3>
               <p className="text-cool-grey leading-relaxed">
                 Transform operational problems into structured software systems. Create templates for every preventative maintenance scenario across all asset types.
@@ -215,8 +215,8 @@ export function LandingPage() {
             </div>
 
             {/* Step 02 */}
-            <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-200 bg-black border border-white/10 p-10 rounded-[2rem] hover:scale-[1.03] hover:border-white/20 hover:shadow-2xl hover:shadow-signal-red/5">
-              <div className="text-signal-red font-mono text-sm mb-6">STEP 02</div>
+            <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-200 bg-black border border-white/10 p-10 rounded-[2rem] hover:scale-[1.03] hover:border-white/20 hover:shadow-2xl hover:shadow-cre-500/5">
+              <div className="text-cre-500 font-mono text-sm mb-6">STEP 02</div>
               <h3 className="text-3xl font-bold text-white mb-4">Enforce.</h3>
               <p className="text-cool-grey leading-relaxed">
                 Require photo-evidence for every recurring operational task. No ticket is closed without visual verification that the standard was met.
@@ -224,8 +224,8 @@ export function LandingPage() {
             </div>
 
             {/* Step 03 */}
-            <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-300 bg-black border border-white/10 p-10 rounded-[2rem] hover:scale-[1.03] hover:border-white/20 hover:shadow-2xl hover:shadow-signal-red/5">
-              <div className="text-signal-red font-mono text-sm mb-6">STEP 03</div>
+            <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-300 bg-black border border-white/10 p-10 rounded-[2rem] hover:scale-[1.03] hover:border-white/20 hover:shadow-2xl hover:shadow-cre-500/5">
+              <div className="text-cre-500 font-mono text-sm mb-6">STEP 03</div>
               <h3 className="text-3xl font-bold text-white mb-4">Audit.</h3>
               <p className="text-cool-grey leading-relaxed">
                 Generate real-time performance scoring to identify deficiencies. Measure vendors on strict Quality, Consistency, Speed, and Volume metrics.
