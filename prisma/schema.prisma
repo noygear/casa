@@ -1,0 +1,335 @@
+// ============================================================
+// CRE Operations Platform — Prisma Schema
+// ============================================================
+// This schema defines the complete data model for commercial
+// real estate property operations and maintenance management.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────────
+
+enum UserRole {
+  asset_manager
+  property_manager
+  vendor
+  tenant
+}
+
+enum WorkOrderStatus {
+  open
+  assigned
+  in_progress
+  needs_review
+  closed
+  skipped
+}
+
+enum Severity {
+  minor
+  needs_fix_today
+  immediate
+}
+
+enum WorkOrderCategory {
+  hvac
+  plumbing
+  electrical
+  fire_safety
+  elevator
+  landscaping
+  janitorial
+  structural
+  tenant_request
+  general
+}
+
+enum MaintenanceFrequency {
+  daily
+  weekly
+  monthly
+  quarterly
+  annually
+  custom
+}
+
+enum PhotoType {
+  before
+  after
+  completion
+}
+
+// ── Users ────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      UserRole
+  phone     String?
+  avatarUrl String?
+  vendorId  String?
+  vendor    Vendor?  @relation(fields: [vendorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  createdWorkOrders  WorkOrder[]       @relation("CreatedBy")
+  assignedWorkOrders WorkOrder[]       @relation("AssignedTo")
+  auditLogs          WorkOrderAuditLog[]
+  inspections        InspectionReport[]
+
+  @@index([role])
+  @@index([vendorId])
+}
+
+// ── Asset Hierarchy ──────────────────────────────────────────
+
+model Property {
+  id          String   @id @default(uuid())
+  name        String
+  address     String
+  city        String
+  state       String
+  zipCode     String
+  type        String   // e.g. "Office", "Retail", "Industrial", "Mixed-Use"
+  totalSqFt   Int?
+  yearBuilt   Int?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  spaces      Space[]
+  workOrders  WorkOrder[]
+  slaConfigs  SLAConfiguration[]
+
+  @@index([city, state])
+}
+
+model Space {
+  id         String   @id @default(uuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  name       String   // e.g. "Suite 200", "Lobby", "Parking Garage", "Roof"
+  floor      Int?
+  type       String   // "suite" | "common_area"
+  tenantName String?  // null if vacant or common area
+  sqFt       Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  workOrders WorkOrder[]
+
+  @@index([propertyId])
+  @@index([type])
+}
+
+// ── Vendors ──────────────────────────────────────────────────
+
+model Vendor {
+  id           String   @id @default(uuid())
+  companyName  String
+  contactEmail String
+  contactPhone String?
+  specialties  String[] // e.g. ["hvac", "plumbing"]
+  licenseNo    String?
+  insuranceExp DateTime?
+  rating       Float    @default(100)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  users        User[]
+  workOrders   WorkOrder[]
+  scoreRecords VendorScoreRecord[]
+
+  @@index([isActive])
+}
+
+// ── Work Orders (Core) ───────────────────────────────────────
+
+model WorkOrder {
+  id           String            @id @default(uuid())
+  title        String
+  description  String
+  status       WorkOrderStatus   @default(open)
+  severity     Severity          @default(minor)
+  category     WorkOrderCategory @default(general)
+  isInspection Boolean           @default(false)
+
+  // Location
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+  spaceId    String?
+  space      Space?   @relation(fields: [spaceId], references: [id])
+
+  // Assignment
+  createdById  String
+  createdBy    User    @relation("CreatedBy", fields: [createdById], references: [id])
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedTo", fields: [assignedToId], references: [id])
+  vendorId     String?
+  vendor       Vendor? @relation(fields: [vendorId], references: [id])
+
+  // SLA tracking
+  dueDate        DateTime?
+  respondedAt    DateTime?  // When vendor first accepted/started
+  resolvedAt     DateTime?  // When closed
+  slaResponseMin Int?       // Target response time in minutes
+  slaResolveMin  Int?       // Target resolution time in minutes
+
+  // Recurring link
+  recurringInstanceId String?            @unique
+  recurringInstance   RecurringInstance?  @relation(fields: [recurringInstanceId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  photos      WorkOrderPhoto[]
+  auditLog    WorkOrderAuditLog[]
+  inspections InspectionReport[]
+
+  @@index([status])
+  @@index([propertyId])
+  @@index([assignedToId])
+  @@index([vendorId])
+  @@index([category])
+  @@index([severity])
+  @@index([createdAt])
+}
+
+model WorkOrderPhoto {
+  id          String    @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  url         String    // CDN URL or base64 data URL
+  type        PhotoType
+  caption     String?
+  uploadedAt  DateTime  @default(now())
+
+  @@index([workOrderId])
+  @@index([type])
+}
+
+model WorkOrderAuditLog {
+  id          String   @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  fromStatus  String
+  toStatus    String
+  comment     String?
+  createdAt   DateTime  @default(now())
+
+  // IMMUTABLE: No update, no cascade delete
+  @@index([workOrderId])
+  @@index([createdAt])
+}
+
+// ── Inspections ──────────────────────────────────────────────
+
+model InspectionReport {
+  id          String    @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+  inspectorId String
+  inspector   User      @relation(fields: [inspectorId], references: [id])
+  passed      Boolean
+  findings    String?
+  correctionRequired Boolean @default(false)
+  inspectedAt DateTime @default(now())
+
+  @@index([workOrderId])
+  @@index([inspectorId])
+}
+
+// ── Recurring / Preventative Maintenance ─────────────────────
+
+model RecurringTemplate {
+  id          String               @id @default(uuid())
+  name        String
+  description String
+  category    WorkOrderCategory
+  severity    Severity             @default(minor)
+  frequency   MaintenanceFrequency
+  customDays  Int?                 // For custom frequency
+  propertyId  String
+  spaceId     String?
+  vendorId    String?
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  // Relations
+  instances RecurringInstance[]
+
+  @@index([isActive])
+  @@index([frequency])
+}
+
+model RecurringInstance {
+  id         String            @id @default(uuid())
+  templateId String
+  template   RecurringTemplate @relation(fields: [templateId], references: [id])
+  dueDate    DateTime
+  createdAt  DateTime          @default(now())
+
+  // Relations
+  workOrder WorkOrder?
+
+  @@index([templateId])
+  @@index([dueDate])
+}
+
+// ── Vendor Scoring ───────────────────────────────────────────
+
+model VendorScoreRecord {
+  id           String   @id @default(uuid())
+  vendorId     String
+  vendor       Vendor   @relation(fields: [vendorId], references: [id])
+  periodStart  DateTime
+  periodEnd    DateTime
+  score        Float
+  rejections   Int      @default(0)
+  skips        Int      @default(0)
+  lateDays     Float    @default(0)
+  completions  Int      @default(0)
+  bonus        Float    @default(0)
+  quality      Float    @default(100) // Sub-scores
+  consistency  Float    @default(100)
+  speed        Float    @default(100)
+  volume       Float    @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([vendorId])
+  @@index([periodStart, periodEnd])
+}
+
+// ── SLA Configuration ────────────────────────────────────────
+
+model SLAConfiguration {
+  id             String            @id @default(uuid())
+  propertyId     String
+  property       Property          @relation(fields: [propertyId], references: [id])
+  category       WorkOrderCategory
+  severity       Severity
+  responseTimeMin Int              // Target response time in minutes
+  resolveTimeMin  Int              // Target resolution time in minutes
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([propertyId, category, severity])
+  @@index([propertyId])
+}
