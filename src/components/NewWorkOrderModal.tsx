@@ -1,13 +1,22 @@
 import { useState } from 'react';
 import { X, Wrench, MapPin, AlertCircle } from 'lucide-react';
-import { MOCK_PROPERTIES, MOCK_SPACES } from '../data/mockData';
+import { MOCK_PROPERTIES, MOCK_SPACES, MOCK_WORK_ORDERS } from '../data/mockData';
 import { CATEGORY_LABELS, Severity } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NewWorkOrderModalProps {
   onClose: () => void;
+  onSubmit?: () => void;
 }
 
-export function NewWorkOrderModal({ onClose }: NewWorkOrderModalProps) {
+const SEVERITY_SLA: Record<Severity, { responseMin: number; resolveMin: number }> = {
+  immediate: { responseMin: 60, resolveMin: 240 },
+  needs_fix_today: { responseMin: 240, resolveMin: 1440 },
+  minor: { responseMin: 480, resolveMin: 2880 },
+};
+
+export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps) {
+  const { user } = useAuth();
   const [propertyId, setPropertyId] = useState('');
   const [spaceId, setSpaceId] = useState('');
   const [title, setTitle] = useState('');
@@ -19,8 +28,35 @@ export function NewWorkOrderModal({ onClose }: NewWorkOrderModalProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would post to an API.
-    alert('Work order created successfully! (Mock Action)');
+    const property = MOCK_PROPERTIES.find(p => p.id === propertyId);
+    const space = spaceId ? MOCK_SPACES.find(s => s.id === spaceId) : undefined;
+    const sla = SEVERITY_SLA[severity];
+    const now = new Date().toISOString();
+
+    MOCK_WORK_ORDERS.push({
+      id: `wo-${Date.now()}`,
+      title,
+      description,
+      category: category as any,
+      severity,
+      status: 'open',
+      isInspection: false,
+      cost: null,
+      propertyId,
+      property,
+      spaceId: spaceId || null,
+      space,
+      createdById: user!.id,
+      createdBy: user!,
+      slaResponseMin: sla.responseMin,
+      slaResolveMin: sla.resolveMin,
+      createdAt: now,
+      updatedAt: now,
+      photos: [],
+      auditLog: [],
+    });
+
+    onSubmit?.();
     onClose();
   };
 

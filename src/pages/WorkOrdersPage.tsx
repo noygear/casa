@@ -280,7 +280,10 @@ export function WorkOrdersPage() {
       )}
 
       {showNewWO && (
-        <NewWorkOrderModal onClose={() => setShowNewWO(false)} />
+        <NewWorkOrderModal
+          onClose={() => setShowNewWO(false)}
+          onSubmit={() => setWorkOrders([...MOCK_WORK_ORDERS])}
+        />
       )}
     </div>
   );

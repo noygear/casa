@@ -5,7 +5,8 @@ import { SLABadge } from './SLABadge';
 import { computeSLAStatus } from '../domain/slaTracker';
 import { getAvailableTransitions } from '../domain/workOrderStateMachine';
 import { useAuth } from '../contexts/AuthContext';
-import { X, MapPin, Building2, User, Clock, Camera, ChevronRight, Shield, History, DollarSign, ImagePlus, FileText } from 'lucide-react';
+import { MOCK_VENDORS, MOCK_USERS } from '../data/mockData';
+import { X, MapPin, Building2, User, Clock, Camera, ChevronRight, Shield, History, DollarSign, ImagePlus, FileText, UserCheck } from 'lucide-react';
 import { useState, useRef } from 'react';
 
 interface WorkOrderDetailModalProps {
@@ -30,6 +31,8 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
     : [];
 
   const [showCompletionForm, setShowCompletionForm] = useState(false);
+  const [showAssignForm, setShowAssignForm] = useState(false);
+  const [assignVendorId, setAssignVendorId] = useState(MOCK_VENDORS[0]?.id ?? '');
   const [targetStatus, setTargetStatus] = useState<WorkOrder['status'] | null>(null);
   const [memo, setMemo] = useState('');
   const [cost, setCost] = useState('');
@@ -60,10 +63,43 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
     }
   };
 
+  const handleAssignSubmit = () => {
+    const vendor = MOCK_VENDORS.find(v => v.id === assignVendorId);
+    const vendorUser = MOCK_USERS.find(u => u.vendorId === assignVendorId);
+    if (!workOrder.auditLog) workOrder.auditLog = [];
+    workOrder.auditLog.push({
+      id: `al-${Date.now()}`,
+      workOrderId: workOrder.id,
+      userId: user!.id,
+      fromStatus: workOrder.status,
+      toStatus: 'assigned',
+      createdAt: new Date().toISOString(),
+    });
+    workOrder.status = 'assigned';
+    workOrder.vendorId = assignVendorId;
+    workOrder.vendor = vendor;
+    if (vendorUser) {
+      workOrder.assignedToId = vendorUser.id;
+      workOrder.assignedTo = vendorUser;
+    }
+    workOrder.respondedAt = new Date().toISOString();
+    onClose();
+  };
+
   // Simplified mutation since we are using mock data
   const handleVendorSubmit = () => {
     // In a real app this would call an API/mutation
+    if (!workOrder.auditLog) workOrder.auditLog = [];
+    workOrder.auditLog.push({
+      id: `al-${Date.now()}`,
+      workOrderId: workOrder.id,
+      userId: user!.id,
+      fromStatus: workOrder.status,
+      toStatus: targetStatus as WorkOrder['status'],
+      createdAt: new Date().toISOString(),
+    });
     workOrder.status = targetStatus as WorkOrder['status'];
+    if (workOrder.status === 'closed') workOrder.resolvedAt = new Date().toISOString();
     if (cost) workOrder.cost = parseFloat(cost);
     
     const newPhotos = [];
@@ -290,6 +326,46 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
             </div>
           )}
 
+          {/* Vendor Assignment Form */}
+          {showAssignForm && (
+            <div className="pt-4 border-t border-white/5 animate-slide-up">
+              <div className="glass-card border-cre-500/20 p-5 bg-cre-500/5">
+                <h4 className="text-sm font-semibold text-cre-400 mb-4 flex items-center gap-2">
+                  <UserCheck size={16} /> Assign to Vendor
+                </h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Select Vendor</label>
+                    <select
+                      value={assignVendorId}
+                      onChange={e => setAssignVendorId(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-sm text-white focus:outline-none focus:border-cre-500/50 appearance-none cursor-pointer"
+                    >
+                      {MOCK_VENDORS.map(v => (
+                        <option key={v.id} value={v.id} className="bg-cre-950 text-white">{v.companyName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={handleAssignSubmit}
+                      disabled={!assignVendorId}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-cre-500 text-white text-sm font-semibold hover:bg-cre-600 transition-all disabled:opacity-50"
+                    >
+                      Confirm Assignment
+                    </button>
+                    <button
+                      onClick={() => setShowAssignForm(false)}
+                      className="px-4 py-2.5 rounded-xl bg-white/5 text-gray-300 text-sm font-medium hover:bg-white/10 transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Vendor Completion Form overlay/section */}
           {showCompletionForm && (
             <div className="pt-4 border-t border-white/5 animate-slide-up">
@@ -404,7 +480,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
           )}
 
           {/* Action Buttons */}
-          {availableTransitions.length > 0 && !showCompletionForm && (
+          {availableTransitions.length > 0 && !showCompletionForm && !showAssignForm && (
             <div className="pt-4 border-t border-white/5">
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Actions</h4>
               <div className="flex flex-wrap gap-2">
@@ -415,8 +491,19 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                       if (user?.role === 'vendor' && (status === 'closed' || status === 'needs_review')) {
                         setTargetStatus(status);
                         setShowCompletionForm(true);
+                      } else if (status === 'assigned') {
+                        setShowAssignForm(true);
                       } else {
-                        // Standard bypass for PMs
+                        if (!workOrder.auditLog) workOrder.auditLog = [];
+                        workOrder.auditLog.push({
+                          id: `al-${Date.now()}`,
+                          workOrderId: workOrder.id,
+                          userId: user!.id,
+                          fromStatus: workOrder.status,
+                          toStatus: status,
+                          createdAt: new Date().toISOString(),
+                        });
+                        if (status === 'closed') workOrder.resolvedAt = new Date().toISOString();
                         workOrder.status = status;
                         onClose();
                       }

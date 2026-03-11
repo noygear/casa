@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { MOCK_WORK_ORDERS } from '../data/mockData';
 import { WorkOrderDetailModal } from '../components/WorkOrderDetailModal';
@@ -8,14 +8,16 @@ import { Plus, Check, FileText } from 'lucide-react';
 
 export function TenantDashboardPage() {
   const { user } = useAuth();
+  const [allOrders, setAllOrders] = useState<WorkOrder[]>(MOCK_WORK_ORDERS);
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
   const [showNewWO, setShowNewWO] = useState(false);
 
+  const refreshOrders = () => setAllOrders([...MOCK_WORK_ORDERS]);
+
   // Tenant "My Requests"
-  const myWorkOrders = useMemo(() => {
-    return MOCK_WORK_ORDERS.filter(wo => wo.createdById === user?.id)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [user?.id]);
+  const myWorkOrders = allOrders
+    .filter(wo => wo.createdById === user?.id)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   // Map to Tenant Flow: Created (open) -> Assigned to Staff (assigned/in_progress) -> Completed (needs_review) -> Verified (closed)
   const getTenantStatus = (status: string) => {
@@ -111,10 +113,10 @@ export function TenantDashboardPage() {
       </div>
 
       {selectedWO && (
-        <WorkOrderDetailModal workOrder={selectedWO} onClose={() => setSelectedWO(null)} />
+        <WorkOrderDetailModal workOrder={selectedWO} onClose={() => { refreshOrders(); setSelectedWO(null); }} />
       )}
       {showNewWO && (
-        <NewWorkOrderModal onClose={() => setShowNewWO(false)} />
+        <NewWorkOrderModal onClose={() => setShowNewWO(false)} onSubmit={refreshOrders} />
       )}
     </div>
   );
