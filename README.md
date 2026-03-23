@@ -1,4 +1,4 @@
-# Cardo — CRE Operations Platform
+# Casa — CRE Operations Platform
 
 A demo platform for managing maintenance requests, vendor accountability, and SLA compliance across commercial real estate portfolios.
 
