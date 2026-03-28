@@ -387,3 +387,11 @@ export const MOCK_PREFERRED_VENDOR_MAPPINGS: PreferredVendorMapping[] = [
   { id: 'pvm-009', propertyId: 'p-003', category: 'hvac', vendorId: 'v-001', priority: 1 },
   { id: 'pvm-010', propertyId: 'p-003', category: 'electrical', vendorId: 'v-002', priority: 1 },
 ];
+
+// ── Property Budgets ────────────────────────────────────────
+
+export const MOCK_PROPERTY_BUDGETS: { propertyId: string; annualBudget: number }[] = [
+  { propertyId: 'p-001', annualBudget: 150000 },
+  { propertyId: 'p-002', annualBudget: 200000 },
+  { propertyId: 'p-003', annualBudget: 80000 },
+];
