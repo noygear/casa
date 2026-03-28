@@ -1,20 +1,31 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { MOCK_WORK_ORDERS, MOCK_PROPERTIES, MOCK_VENDORS, MOCK_VENDOR_SCORES, MOCK_PROPERTY_BUDGETS } from '../data/mockData';
+import { useWorkOrders } from '../hooks/useWorkOrders';
+import { useProperties } from '../hooks/useProperties';
+import { useVendors, useVendorScores } from '../hooks/useVendors';
 import { WorkOrderCard } from '../components/WorkOrderCard';
 import { WorkOrderDetailModal } from '../components/WorkOrderDetailModal';
 import { VendorScorecard } from '../components/VendorScorecard';
 import { PropertyHealthCard } from '../components/PropertyHealthCard';
 import { BudgetOverview } from '../components/BudgetOverview';
 import { ComplaintVolumeChart } from '../components/ComplaintVolumeChart';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { computePropertyHealth, computePropertyBudget, computeWeeklyVolume } from '../domain/propertyHealthCalculator';
-import type { WorkOrder } from '../types';
+import type { WorkOrder, VendorScoreRecord } from '../types';
 import {
   Building2, TrendingUp, Users,
   Zap, Lightbulb, TrendingDown, Activity, AlertTriangle, ClipboardList
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useIssueDetection } from '../hooks/useIssueDetection';
+
+// Budget data has no backend endpoint yet — keep as local constant
+const PROPERTY_BUDGETS: { propertyId: string; annualBudget: number }[] = [
+  { propertyId: 'p-001', annualBudget: 150000 },
+  { propertyId: 'p-002', annualBudget: 200000 },
+  { propertyId: 'p-003', annualBudget: 80000 },
+];
 
 type DashboardTab = 'properties' | 'vendors' | 'workorders';
 
@@ -24,39 +35,67 @@ export function DashboardPage() {
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
   const [activeTab, setActiveTab] = useState<DashboardTab>('properties');
 
-  const issueFlags = useIssueDetection(MOCK_WORK_ORDERS, 90, 2);
+  const { data: workOrdersData, isLoading: woLoading, isError: woError, error: woErr, refetch: refetchWO } = useWorkOrders();
+  const { data: propertiesData, isLoading: propsLoading } = useProperties();
+  const { data: vendorsData, isLoading: vendorsLoading } = useVendors();
+  const { data: scoresData, isLoading: scoresLoading } = useVendorScores();
 
-  // Property health & budget data
-  const propertyMetrics = useMemo(() => {
-    return MOCK_PROPERTIES.map(property => {
-      const health = computePropertyHealth(MOCK_WORK_ORDERS, property.id);
-      const budgetConfig = MOCK_PROPERTY_BUDGETS.find(b => b.propertyId === property.id);
-      const budget = computePropertyBudget(MOCK_WORK_ORDERS, property.id, budgetConfig?.annualBudget ?? 0);
-      return { property, health, budget };
-    });
-  }, []);
+  const workOrders = workOrdersData?.items || [];
+  const issueFlags = useIssueDetection(workOrders, 90, 2);
 
-  const allBudgets = propertyMetrics.map(m => m.budget);
-  const weeklyVolume = useMemo(() => computeWeeklyVolume(MOCK_WORK_ORDERS, 8), []);
+  const isLoading = woLoading || propsLoading || vendorsLoading || scoresLoading;
+  if (isLoading) return <LoadingSpinner />;
+  if (woError) return <ErrorBanner message={woErr?.message || 'Failed to load dashboard data'} onRetry={refetchWO} />;
 
-  // Vendor data
-  const topVendors = MOCK_VENDORS.slice(0, 3).map(v => ({
-    vendor: v,
-    score: MOCK_VENDOR_SCORES.find(s => s.vendorId === v.id)!,
+  const properties = propertiesData?.items || [];
+  const vendors = vendorsData?.items || [];
+  const scores: VendorScoreRecord[] = (scoresData || []).map(s => ({
+    id: s.id,
+    vendorId: s.vendorId,
+    periodStart: s.periodStart,
+    periodEnd: s.periodEnd,
+    score: s.score,
+    rejections: s.rejections,
+    skips: s.skips,
+    lateDays: s.lateDays,
+    completions: s.completions,
+    bonus: s.bonus,
+    quality: s.quality,
+    consistency: s.consistency,
+    speed: s.speed,
+    volume: s.volume,
+    createdAt: s.createdAt,
   }));
 
-  const stats = useMemo(() => {
-    const total = MOCK_WORK_ORDERS.length;
-    const urgent = MOCK_WORK_ORDERS.filter(wo => wo.severity === 'immediate' && wo.status !== 'closed').length;
-    const slaCompliance = Math.round(((total - urgent) / total) * 100);
+  // Property health & budget data
+  const propertyMetrics = properties.map(property => {
+    const health = computePropertyHealth(workOrders, property.id);
+    const budgetConfig = PROPERTY_BUDGETS.find(b => b.propertyId === property.id);
+    const budget = computePropertyBudget(workOrders, property.id, budgetConfig?.annualBudget ?? 0);
+    return { property, health, budget };
+  });
+
+  const allBudgets = propertyMetrics.map(m => m.budget);
+  const weeklyVolume = computeWeeklyVolume(workOrders, 8);
+
+  // Vendor data
+  const topVendors = vendors.slice(0, 3).map(v => ({
+    vendor: v,
+    score: scores.find(s => s.vendorId === v.id),
+  })).filter((d): d is { vendor: typeof d.vendor; score: VendorScoreRecord } => !!d.score);
+
+  const stats = (() => {
+    const total = workOrders.length;
+    const urgent = workOrders.filter(wo => wo.severity === 'immediate' && wo.status !== 'closed').length;
+    const slaCompliance = total > 0 ? Math.round(((total - urgent) / total) * 100) : 100;
     return { urgent, slaCompliance };
-  }, []);
+  })();
 
   // Work order data
-  const urgentOrders = MOCK_WORK_ORDERS.filter(
+  const urgentOrders = workOrders.filter(
     wo => wo.severity === 'immediate' && wo.status !== 'closed' && wo.status !== 'skipped'
   );
-  const recentOrders = [...MOCK_WORK_ORDERS]
+  const recentOrders = [...workOrders]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 6);
 
@@ -111,10 +150,9 @@ export function DashboardPage() {
         </button>
       </div>
 
-      {/* ═══ Properties Tab ═══ */}
+      {/* Properties Tab */}
       {activeTab === 'properties' && (
         <div className="space-y-8 animate-slide-up">
-          {/* Property Health Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {propertyMetrics.map(({ property, health, budget }) => (
               <PropertyHealthCard
@@ -127,9 +165,8 @@ export function DashboardPage() {
             ))}
           </div>
 
-          {/* Budget + Complaints Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <BudgetOverview properties={MOCK_PROPERTIES} budgets={allBudgets} />
+            <BudgetOverview properties={properties} budgets={allBudgets} />
             <ComplaintVolumeChart data={weeklyVolume} />
           </div>
 
@@ -140,7 +177,6 @@ export function DashboardPage() {
               Smart Insights
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Budget Alerts */}
               {budgetAlerts.map((alert, i) => (
                 <div key={i} className="glass-card border-amber-500/20 p-5 flex gap-4">
                   <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
@@ -156,7 +192,6 @@ export function DashboardPage() {
                 </div>
               ))}
 
-              {/* Recurring Issues */}
               {issueFlags.map((flag, i) => (
                 <div key={`issue-${i}`} className="glass-card border-purple-500/20 p-5 flex gap-4">
                   <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0">
@@ -180,7 +215,6 @@ export function DashboardPage() {
                 </div>
               ))}
 
-              {/* Cost Optimization */}
               <div className="glass-card border-emerald-500/20 p-5 flex gap-4">
                 <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
                   <TrendingDown size={18} className="text-emerald-400" />
@@ -198,10 +232,9 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ Vendors Tab ═══ */}
+      {/* Vendors Tab */}
       {activeTab === 'vendors' && (
         <div className="space-y-8 animate-slide-up">
-          {/* SLA Compliance */}
           <div
             onClick={() => navigate('/sla-compliance')}
             className="glass-card-hover cursor-pointer p-6"
@@ -224,7 +257,6 @@ export function DashboardPage() {
             </div>
           </div>
 
-          {/* Vendor Scorecards */}
           <div>
             <h3 className="text-sm font-semibold text-gray-300 mb-4">Vendor Performance</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -236,10 +268,9 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ Work Orders Tab ═══ */}
+      {/* Work Orders Tab */}
       {activeTab === 'workorders' && (
         <div className="space-y-8 animate-slide-up">
-          {/* Urgent Orders */}
           {urgentOrders.length > 0 && (
             <div className="glass-card border-rose-500/20 p-5">
               <div className="flex items-center gap-2 mb-4">
@@ -254,7 +285,6 @@ export function DashboardPage() {
             </div>
           )}
 
-          {/* Recent Work Orders */}
           <div>
             <h3 className="text-sm font-semibold text-gray-300 mb-4">Recent Work Orders</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -266,9 +296,8 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Detail Modal */}
       {selectedWO && (
-        <WorkOrderDetailModal workOrder={selectedWO} onClose={() => setSelectedWO(null)} />
+        <WorkOrderDetailModal workOrder={selectedWO} onClose={() => { refetchWO(); setSelectedWO(null); }} />
       )}
     </div>
   );

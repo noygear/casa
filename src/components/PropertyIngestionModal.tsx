@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { X, Upload, FileText, Building2, Plus, Trash2, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { MOCK_PROPERTIES, MOCK_SPACES } from '../data/mockData';
+import { useCreateProperty } from '../hooks/useProperties';
 import { extractPropertyFromDocument, ExtractedPropertyData } from '../domain/propertyExtractor';
 
 interface PropertyIngestionModalProps {
@@ -20,7 +20,9 @@ interface SpaceEntry {
 }
 
 export function PropertyIngestionModal({ onClose, onSubmit }: PropertyIngestionModalProps) {
+  const createProperty = useCreateProperty();
   const [activeTab, setActiveTab] = useState<'upload' | 'manual'>('upload');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form fields
   const [name, setName] = useState('');
@@ -90,43 +92,36 @@ export function PropertyIngestionModal({ onClose, onSubmit }: PropertyIngestionM
     ));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const now = new Date().toISOString();
-    const propertyId = `p-${Date.now()}`;
-
-    MOCK_PROPERTIES.push({
-      id: propertyId,
-      name,
-      address,
-      city,
-      state,
-      zipCode,
-      type,
-      totalSqFt: totalSqFt ? parseInt(totalSqFt) : undefined,
-      yearBuilt: yearBuilt ? parseInt(yearBuilt) : undefined,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    for (const space of spaces) {
-      if (space.name) {
-        MOCK_SPACES.push({
-          id: `s-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          propertyId,
-          name: space.name,
-          floor: space.floor ? parseInt(space.floor) : undefined,
-          type: space.type,
-          tenantName: space.tenantName || undefined,
-          sqFt: space.sqFt ? parseInt(space.sqFt) : undefined,
-          createdAt: now,
-          updatedAt: now,
-        });
-      }
+    setIsSubmitting(true);
+    try {
+      await createProperty.mutateAsync({
+        name,
+        address,
+        city,
+        state,
+        zipCode,
+        type,
+        totalSqFt: totalSqFt ? parseInt(totalSqFt) : undefined,
+        yearBuilt: yearBuilt ? parseInt(yearBuilt) : undefined,
+        spaces: spaces
+          .filter(s => s.name)
+          .map(s => ({
+            name: s.name,
+            floor: s.floor ? parseInt(s.floor) : undefined,
+            type: s.type,
+            tenantName: s.tenantName || undefined,
+            sqFt: s.sqFt ? parseInt(s.sqFt) : undefined,
+          })),
+      });
+      onSubmit?.();
+      onClose();
+    } catch (err) {
+      console.error('Failed to create property:', err);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    onSubmit?.();
-    onClose();
   };
 
   const isValid = name && address && city && state && zipCode;
@@ -413,10 +408,10 @@ export function PropertyIngestionModal({ onClose, onSubmit }: PropertyIngestionM
               </button>
               <button
                 type="submit"
-                disabled={!isValid}
+                disabled={!isValid || isSubmitting}
                 className="px-5 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50"
               >
-                Add Property
+                {isSubmitting ? 'Adding...' : 'Add Property'}
               </button>
             </div>
           )}

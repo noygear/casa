@@ -1,6 +1,9 @@
-import { useState, useMemo } from 'react';
-import { MOCK_PROPERTIES, MOCK_SPACES, MOCK_WORK_ORDERS } from '../data/mockData';
+import { useState } from 'react';
+import { useProperties } from '../hooks/useProperties';
+import { useWorkOrders } from '../hooks/useWorkOrders';
 import { PropertyIngestionModal } from '../components/PropertyIngestionModal';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { Building2, MapPin, Layers, Wrench, Search, Filter, Plus } from 'lucide-react';
 
@@ -9,25 +12,28 @@ export function PropertiesPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [showAddProperty, setShowAddProperty] = useState(false);
-  const [properties, setProperties] = useState(MOCK_PROPERTIES);
 
-  const propertyTypes = useMemo(() => {
-    const types = new Set(properties.map(p => p.type));
-    return Array.from(types);
-  }, [properties]);
+  const { data: propertiesData, isLoading: propsLoading, isError: propsError, error: propsErr, refetch: refetchProps } = useProperties();
+  const { data: workOrdersData } = useWorkOrders();
 
-  const filteredProperties = useMemo(() => {
-    return properties.filter(p => {
-      const matchesSearch = search === '' || 
-        p.name.toLowerCase().includes(search.toLowerCase()) || 
-        p.address.toLowerCase().includes(search.toLowerCase()) ||
-        p.city.toLowerCase().includes(search.toLowerCase());
-      
-      const matchesType = typeFilter === 'all' || p.type === typeFilter;
-      
-      return matchesSearch && matchesType;
-    });
-  }, [properties, search, typeFilter]);
+  if (propsLoading) return <LoadingSpinner />;
+  if (propsError) return <ErrorBanner message={propsErr?.message || 'Failed to load properties'} onRetry={refetchProps} />;
+
+  const properties = propertiesData?.items || [];
+  const workOrders = workOrdersData?.items || [];
+
+  const propertyTypes = [...new Set(properties.map(p => p.type))];
+
+  const filteredProperties = properties.filter(p => {
+    const matchesSearch = search === '' ||
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.address.toLowerCase().includes(search.toLowerCase()) ||
+      p.city.toLowerCase().includes(search.toLowerCase());
+
+    const matchesType = typeFilter === 'all' || p.type === typeFilter;
+
+    return matchesSearch && matchesType;
+  });
 
   return (
     <div className="space-y-8">
@@ -76,10 +82,10 @@ export function PropertiesPage() {
       {/* Property Cards */}
       <div className="space-y-6">
         {filteredProperties.map((property, pi) => {
-          const spaces = MOCK_SPACES.filter(s => s.propertyId === property.id);
+          const spaces = property.spaces || [];
           const suites = spaces.filter(s => s.type === 'suite');
           const commonAreas = spaces.filter(s => s.type === 'common_area');
-          const openWOs = MOCK_WORK_ORDERS.filter(
+          const openWOs = workOrders.filter(
             wo => wo.propertyId === property.id && wo.status !== 'closed' && wo.status !== 'skipped'
           ).length;
 
@@ -207,7 +213,7 @@ export function PropertiesPage() {
       {showAddProperty && (
         <PropertyIngestionModal
           onClose={() => setShowAddProperty(false)}
-          onSubmit={() => setProperties([...MOCK_PROPERTIES])}
+          onSubmit={() => refetchProps()}
         />
       )}
     </div>

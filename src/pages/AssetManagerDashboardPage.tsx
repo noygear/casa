@@ -1,11 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { MOCK_WORK_ORDERS, MOCK_PROPERTIES, MOCK_VENDORS, MOCK_VENDOR_SCORES, MOCK_PROPERTY_BUDGETS } from '../data/mockData';
+import { useWorkOrders } from '../hooks/useWorkOrders';
+import { useProperties } from '../hooks/useProperties';
+import { useVendors, useVendorScores } from '../hooks/useVendors';
 import { PropertyHealthCard } from '../components/PropertyHealthCard';
 import { VendorDetailModal } from '../components/VendorDetailModal';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { computePropertyHealth, computePropertyBudget } from '../domain/propertyHealthCalculator';
 import { computePortfolioSummary, computeCostTrends, computeVendorAuditData, getTopCostCenters } from '../domain/portfolioAnalytics';
-import type { Vendor } from '../types';
+import type { Vendor, VendorScoreRecord } from '../types';
 import {
   Building2, DollarSign, Users, Activity, TrendingUp,
   BarChart3, PieChart, AlertTriangle, Lightbulb
@@ -14,47 +18,65 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useNavigate } from 'react-router-dom';
 import { useIssueDetection } from '../hooks/useIssueDetection';
 
+// Budget data has no backend endpoint yet — keep as local constant
+const PROPERTY_BUDGETS: { propertyId: string; annualBudget: number }[] = [
+  { propertyId: 'p-001', annualBudget: 150000 },
+  { propertyId: 'p-002', annualBudget: 200000 },
+  { propertyId: 'p-003', annualBudget: 80000 },
+];
+
 export function AssetManagerDashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [vendorSortKey, setVendorSortKey] = useState<'totalSpend' | 'avgScore' | 'rejectionRate'>('totalSpend');
 
-  const issueFlags = useIssueDetection(MOCK_WORK_ORDERS, 90, 2);
+  const { data: workOrdersData, isLoading: woLoading, isError: woError, error: woErr, refetch: refetchWO } = useWorkOrders();
+  const { data: propertiesData, isLoading: propsLoading } = useProperties();
+  const { data: vendorsData, isLoading: vendorsLoading } = useVendors();
+  const { data: scoresData, isLoading: scoresLoading } = useVendorScores();
+
+  const workOrders = workOrdersData?.items || [];
+  const issueFlags = useIssueDetection(workOrders, 90, 2);
+
+  const isLoading = woLoading || propsLoading || vendorsLoading || scoresLoading;
+  if (isLoading) return <LoadingSpinner />;
+  if (woError) return <ErrorBanner message={woErr?.message || 'Failed to load dashboard'} onRetry={refetchWO} />;
+
+  const properties = propertiesData?.items || [];
+  const vendors = vendorsData?.items || [];
+  const vendorScoreRecords: VendorScoreRecord[] = (scoresData || []).map(s => ({
+    id: s.id, vendorId: s.vendorId, periodStart: s.periodStart, periodEnd: s.periodEnd,
+    score: s.score, rejections: s.rejections, skips: s.skips, lateDays: s.lateDays,
+    completions: s.completions, bonus: s.bonus, quality: s.quality, consistency: s.consistency,
+    speed: s.speed, volume: s.volume, createdAt: s.createdAt,
+  }));
 
   // Property metrics
-  const propertyMetrics = useMemo(() => {
-    return MOCK_PROPERTIES.map(property => {
-      const health = computePropertyHealth(MOCK_WORK_ORDERS, property.id);
-      const budgetConfig = MOCK_PROPERTY_BUDGETS.find(b => b.propertyId === property.id);
-      const budget = computePropertyBudget(MOCK_WORK_ORDERS, property.id, budgetConfig?.annualBudget ?? 0);
-      return { property, health, budget };
-    });
-  }, []);
+  const propertyMetrics = properties.map(property => {
+    const health = computePropertyHealth(workOrders, property.id);
+    const budgetConfig = PROPERTY_BUDGETS.find(b => b.propertyId === property.id);
+    const budget = computePropertyBudget(workOrders, property.id, budgetConfig?.annualBudget ?? 0);
+    return { property, health, budget };
+  });
 
   const healthScores = propertyMetrics.map(m => m.health.score);
 
   // Portfolio summary
-  const portfolio = useMemo(() =>
-    computePortfolioSummary(MOCK_PROPERTIES, MOCK_WORK_ORDERS, healthScores),
-    [healthScores]
-  );
+  const portfolio = computePortfolioSummary(properties, workOrders, healthScores);
 
   // Cost trends
-  const costTrends = useMemo(() => computeCostTrends(MOCK_WORK_ORDERS, 12), []);
+  const costTrends = computeCostTrends(workOrders, 12);
 
   // Vendor audit
-  const vendorAudit = useMemo(() => {
-    const data = computeVendorAuditData(MOCK_VENDORS, MOCK_WORK_ORDERS, MOCK_VENDOR_SCORES);
-    return [...data].sort((a, b) => {
-      if (vendorSortKey === 'avgScore') return b.avgScore - a.avgScore;
-      if (vendorSortKey === 'rejectionRate') return b.rejectionRate - a.rejectionRate;
-      return b.totalSpend - a.totalSpend;
-    });
-  }, [vendorSortKey]);
+  const vendorAudit = [...computeVendorAuditData(vendors, workOrders, vendorScoreRecords)].sort((a, b) => {
+    if (vendorSortKey === 'avgScore') return b.avgScore - a.avgScore;
+    if (vendorSortKey === 'rejectionRate') return b.rejectionRate - a.rejectionRate;
+    return b.totalSpend - a.totalSpend;
+  });
 
   // Top cost centers
-  const topCostCenters = useMemo(() => getTopCostCenters(MOCK_WORK_ORDERS, MOCK_PROPERTIES, 5), []);
+  const topCostCenters = getTopCostCenters(workOrders, properties, 5);
 
   // Total spend YTD
   const totalYtdSpend = propertyMetrics.reduce((s, m) => s + m.budget.ytdSpend, 0);
@@ -173,7 +195,6 @@ export function AssetManagerDashboardPage() {
             <h3 className="text-sm font-semibold text-gray-300">Roll-Up Reporting</h3>
           </div>
 
-          {/* YTD Spend */}
           <div className="mb-5">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs text-gray-500">Portfolio Spend YTD</span>
@@ -185,12 +206,11 @@ export function AssetManagerDashboardPage() {
             <div className="h-2 bg-white/5 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full bg-cre-500 transition-all"
-                style={{ width: `${Math.min(100, Math.round((totalYtdSpend / totalAnnualBudget) * 100))}%` }}
+                style={{ width: `${totalAnnualBudget > 0 ? Math.min(100, Math.round((totalYtdSpend / totalAnnualBudget) * 100)) : 0}%` }}
               />
             </div>
           </div>
 
-          {/* Top Cost Centers */}
           <div>
             <span className="text-[10px] text-gray-500 uppercase tracking-wider">Top Cost Centers</span>
             <div className="mt-2 space-y-2">
@@ -280,7 +300,6 @@ export function AssetManagerDashboardPage() {
           Strategic Insights
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Properties Requiring Attention */}
           {attentionProperties.length > 0 && (
             <div className="glass-card border-rose-500/20 p-5 flex gap-4">
               <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center shrink-0">
@@ -301,7 +320,6 @@ export function AssetManagerDashboardPage() {
             </div>
           )}
 
-          {/* Recurring Issues (portfolio-level) */}
           {issueFlags.slice(0, 2).map((flag, i) => (
             <div key={i} className="glass-card border-purple-500/20 p-5 flex gap-4">
               <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0">
@@ -319,7 +337,6 @@ export function AssetManagerDashboardPage() {
             </div>
           ))}
 
-          {/* Vendor contract review */}
           {vendorAudit.filter(v => v.avgScore < 80).length > 0 && (
             <div className="glass-card border-amber-500/20 p-5 flex gap-4">
               <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
@@ -343,7 +360,6 @@ export function AssetManagerDashboardPage() {
         </div>
       </div>
 
-      {/* Vendor Detail Modal */}
       {selectedVendor && (
         <VendorDetailModal vendor={selectedVendor} onClose={() => setSelectedVendor(null)} />
       )}

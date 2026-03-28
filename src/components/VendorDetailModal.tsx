@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { X, TrendingUp, Calendar, Building2, DollarSign } from 'lucide-react';
 import { Vendor } from '../types';
-import { MOCK_WORK_ORDERS, MOCK_PROPERTIES } from '../data/mockData';
+import { useWorkOrders } from '../hooks/useWorkOrders';
+import { useProperties } from '../hooks/useProperties';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { subDays, startOfMonth, format, isAfter } from 'date-fns';
 
@@ -16,10 +17,15 @@ export function VendorDetailModal({ vendor, onClose }: VendorDetailModalProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>('12months');
   const [propertyFilter, setPropertyFilter] = useState<string>('all');
 
+  const { data: workOrdersData } = useWorkOrders({ vendorId: vendor.id });
+  const { data: propertiesData } = useProperties();
+  const properties = propertiesData?.items || [];
+
   // Filter to only closed work orders for this vendor
   const vendorOrders = useMemo(() => {
-    return MOCK_WORK_ORDERS.filter(wo => wo.vendorId === vendor.id && wo.status === 'closed' && wo.cost !== null);
-  }, [vendor.id]);
+    const allOrders = workOrdersData?.items || [];
+    return allOrders.filter(wo => wo.status === 'closed' && wo.cost !== null);
+  }, [workOrdersData]);
 
   // Apply filters
   const filteredOrders = useMemo(() => {
@@ -129,7 +135,7 @@ export function VendorDetailModal({ vendor, onClose }: VendorDetailModalProps) {
                   className="pl-9 pr-8 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-cre-500/50 appearance-none cursor-pointer hover:bg-white/10 transition-colors"
                 >
                   <option value="all" className="bg-cre-950">All Properties</option>
-                  {MOCK_PROPERTIES.map(p => (
+                  {properties.map(p => (
                     <option key={p.id} value={p.id} className="bg-cre-950">{p.name}</option>
                   ))}
                 </select>

@@ -1,11 +1,15 @@
 import { useState, useMemo } from 'react';
-import { MOCK_VENDORS, MOCK_VENDOR_SCORES, MOCK_PREFERRED_VENDOR_MAPPINGS, MOCK_PROPERTIES } from '../data/mockData';
+import { useVendors, useVendorScores } from '../hooks/useVendors';
+import { usePreferredVendorMappings } from '../hooks/usePreferredVendorMappings';
+import { useProperties } from '../hooks/useProperties';
 import { VendorScorecard } from '../components/VendorScorecard';
 import { VendorDetailModal } from '../components/VendorDetailModal';
 import { VendorReferralBanner } from '../components/VendorReferralBanner';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { detectUnderperformers, findAlternativeVendors } from '../domain/vendorReferralEngine';
 import { Award, TrendingUp, AlertTriangle, Users, UserPlus, Building2 } from 'lucide-react';
-import type { Vendor } from '../types';
+import type { Vendor, VendorScoreRecord } from '../types';
 import { CATEGORY_LABELS } from '../types';
 
 type VendorTab = 'scorecards' | 'referrals' | 'preferred';
@@ -14,41 +18,73 @@ export function VendorsPage() {
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [activeTab, setActiveTab] = useState<VendorTab>('scorecards');
 
-  const vendorData = MOCK_VENDORS.map(v => ({
+  const { data: vendorsData, isLoading: vendorsLoading, isError: vendorsError, error: vendorsErr, refetch: refetchVendors } = useVendors();
+  const { data: scoresData, isLoading: scoresLoading } = useVendorScores();
+  const { data: mappingsData } = usePreferredVendorMappings();
+  const { data: propertiesData } = useProperties();
+
+  if (vendorsLoading || scoresLoading) return <LoadingSpinner />;
+  if (vendorsError) return <ErrorBanner message={vendorsErr?.message || 'Failed to load vendors'} onRetry={refetchVendors} />;
+
+  const vendors = vendorsData?.items || [];
+  const scores = scoresData || [];
+  const mappings = mappingsData || [];
+  const properties = propertiesData?.items || [];
+
+  // Build vendor score records array for domain functions
+  const vendorScoreRecords: VendorScoreRecord[] = scores.map(s => ({
+    id: s.id,
+    vendorId: s.vendorId,
+    periodStart: s.periodStart,
+    periodEnd: s.periodEnd,
+    score: s.score,
+    rejections: s.rejections,
+    skips: s.skips,
+    lateDays: s.lateDays,
+    completions: s.completions,
+    bonus: s.bonus,
+    quality: s.quality,
+    consistency: s.consistency,
+    speed: s.speed,
+    volume: s.volume,
+    createdAt: s.createdAt,
+  }));
+
+  const vendorData = vendors.map(v => ({
     vendor: v,
-    score: MOCK_VENDOR_SCORES.find(s => s.vendorId === v.id)!,
-  })).filter(d => d.score);
+    score: vendorScoreRecords.find(s => s.vendorId === v.id),
+  })).filter((d): d is { vendor: Vendor; score: VendorScoreRecord } => !!d.score);
 
-  const avgScore = Math.round(
-    vendorData.reduce((sum, d) => sum + d.score.score, 0) / vendorData.length
-  );
+  const avgScore = vendorData.length > 0
+    ? Math.round(vendorData.reduce((sum, d) => sum + d.score.score, 0) / vendorData.length)
+    : 0;
 
-  const topPerformer = vendorData.reduce((best, d) =>
-    d.score.score > (best?.score.score ?? 0) ? d : best, vendorData[0]
-  );
+  const topPerformer = vendorData.length > 0
+    ? vendorData.reduce((best, d) => d.score.score > (best?.score.score ?? 0) ? d : best, vendorData[0])
+    : null;
 
   // Referral data
   const underperformers = useMemo(() =>
-    detectUnderperformers(MOCK_VENDORS, MOCK_VENDOR_SCORES, 80),
-    []
+    detectUnderperformers(vendors, vendorScoreRecords, 80),
+    [vendors, vendorScoreRecords]
   );
 
   const referralSuggestions = useMemo(() => {
     const map = new Map<string, ReturnType<typeof findAlternativeVendors>>();
     underperformers.forEach(({ vendor, score }) => {
-      map.set(vendor.id, findAlternativeVendors(vendor, score.score, MOCK_VENDORS, MOCK_VENDOR_SCORES));
+      map.set(vendor.id, findAlternativeVendors(vendor, score.score, vendors, vendorScoreRecords));
     });
     return map;
-  }, [underperformers]);
+  }, [underperformers, vendors, vendorScoreRecords]);
 
   // Preferred vendor mapping display
   const preferredMappings = useMemo(() => {
-    return MOCK_PREFERRED_VENDOR_MAPPINGS.map(mapping => {
-      const property = MOCK_PROPERTIES.find(p => p.id === mapping.propertyId);
-      const vendor = MOCK_VENDORS.find(v => v.id === mapping.vendorId);
+    return mappings.map(mapping => {
+      const property = properties.find(p => p.id === mapping.propertyId);
+      const vendor = vendors.find(v => v.id === mapping.vendorId);
       return { ...mapping, property, vendor };
     });
-  }, []);
+  }, [mappings, properties, vendors]);
 
   return (
     <div className="space-y-8">
@@ -83,10 +119,16 @@ export function VendorsPage() {
             <Award size={16} className="text-violet-400" />
             <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Top Performer</span>
           </div>
-          <div className="text-lg font-bold text-white">{topPerformer.vendor.companyName}</div>
-          <div className="text-sm text-emerald-400 font-semibold mt-1">
-            Score: {Math.round(topPerformer.score.score)}
-          </div>
+          {topPerformer ? (
+            <>
+              <div className="text-lg font-bold text-white">{topPerformer.vendor.companyName}</div>
+              <div className="text-sm text-emerald-400 font-semibold mt-1">
+                Score: {Math.round(topPerformer.score.score)}
+              </div>
+            </>
+          ) : (
+            <div className="text-sm text-gray-500">No scores yet</div>
+          )}
         </div>
 
         <div className="glass-card p-5 animate-slide-up animate-slide-up-delay-3">
@@ -94,8 +136,8 @@ export function VendorsPage() {
             <Users size={16} className="text-gray-400" />
             <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Active Vendors</span>
           </div>
-          <div className="text-4xl font-bold text-white">{MOCK_VENDORS.filter(v => v.isActive).length}</div>
-          <div className="text-xs text-gray-500 mt-1">of {MOCK_VENDORS.length} total</div>
+          <div className="text-4xl font-bold text-white">{vendors.filter(v => v.isActive).length}</div>
+          <div className="text-xs text-gray-500 mt-1">of {vendors.length} total</div>
         </div>
       </div>
 
@@ -179,7 +221,7 @@ export function VendorsPage() {
         </div>
       )}
 
-      {/* ═══ Scorecards Tab ═══ */}
+      {/* Scorecards Tab */}
       {activeTab === 'scorecards' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-up">
           {vendorData.map(({ vendor, score }) => {
@@ -203,7 +245,7 @@ export function VendorsPage() {
         </div>
       )}
 
-      {/* ═══ Referrals Tab ═══ */}
+      {/* Referrals Tab */}
       {activeTab === 'referrals' && (
         <div className="space-y-6 animate-slide-up">
           {underperformers.length === 0 ? (
@@ -247,7 +289,6 @@ export function VendorsPage() {
                           </div>
                           <button
                             onClick={() => {
-                              // Revenue integration point: track referral request
                               console.log(`[Referral] Introduction requested: ${suggestion.suggestedVendor.companyName}`);
                             }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cre-500/10 text-xs text-cre-400 font-medium hover:bg-cre-500/20 transition-all"
@@ -268,7 +309,7 @@ export function VendorsPage() {
         </div>
       )}
 
-      {/* ═══ Preferred Vendors Tab ═══ */}
+      {/* Preferred Vendors Tab */}
       {activeTab === 'preferred' && (
         <div className="glass-card p-6 animate-slide-up">
           <div className="flex items-center gap-2 mb-5">

@@ -1,15 +1,19 @@
-import { useState, useMemo, useCallback } from 'react';
-import { MOCK_WORK_ORDERS, MOCK_RECURRING_TEMPLATES, MOCK_PREFERRED_VENDOR_MAPPINGS, MOCK_VENDORS, MOCK_USERS } from '../data/mockData';
+import { useState, useCallback } from 'react';
+import { useWorkOrders, useUpdateWorkOrder } from '../hooks/useWorkOrders';
+import { useRecurringTemplates } from '../hooks/useRecurringTemplates';
+import { usePreferredVendorMappings } from '../hooks/usePreferredVendorMappings';
+import { useVendors } from '../hooks/useVendors';
 import { WorkOrderCard } from '../components/WorkOrderCard';
 import { WorkOrderDetailModal } from '../components/WorkOrderDetailModal';
 import { NewWorkOrderModal } from '../components/NewWorkOrderModal';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorBanner } from '../components/ErrorBanner';
 import type { WorkOrder, Severity, WorkOrderCategory } from '../types';
 import { CATEGORY_LABELS } from '../types';
 import { Search, Filter, SlidersHorizontal, Plus, X, RepeatIcon as Repeat, Building2, Wrench, ToggleLeft, ToggleRight, Info, Zap } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { findPreferredVendor } from '../domain/autoAssigner';
-import { validateTransition } from '../domain/workOrderStateMachine';
 
 type TabType = 'unassigned' | 'active' | 'closed' | 'recurring';
 
@@ -23,7 +27,12 @@ export function WorkOrdersPage() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(MOCK_WORK_ORDERS);
+  const { data: workOrdersData, isLoading, isError, error, refetch } = useWorkOrders();
+  const { data: mappingsData } = usePreferredVendorMappings();
+  const { data: vendorsData } = useVendors();
+  const { data: templatesData } = useRecurringTemplates();
+  const updateWorkOrder = useUpdateWorkOrder();
+
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
   const [showNewWO, setShowNewWO] = useState(false);
   const [search, setSearch] = useState('');
@@ -49,61 +58,39 @@ export function WorkOrdersPage() {
     });
   }, []);
 
+  if (isLoading) return <LoadingSpinner />;
+  if (isError) return <ErrorBanner message={error?.message || 'Failed to load work orders'} onRetry={refetch} />;
+
+  const workOrders = workOrdersData?.items || [];
+  const mappings = mappingsData || [];
+  const vendors = vendorsData?.items || [];
+  const recurringTemplates = templatesData || [];
+
   // Auto-assign logic for new work orders
-  const handleNewWOCreated = useCallback(() => {
-    const refreshed = [...MOCK_WORK_ORDERS];
+  const handleNewWOCreated = () => {
     if (autoAssign) {
-      for (const wo of refreshed) {
-        if (wo.status === 'open' && !wo.vendorId) {
-          const vendor = findPreferredVendor(wo.propertyId, wo.category, MOCK_PREFERRED_VENDOR_MAPPINGS, MOCK_VENDORS);
-          if (vendor) {
-            const vendorUser = MOCK_USERS.find(u => u.vendorId === vendor.id);
-            try {
-              validateTransition({
-                currentStatus: wo.status,
-                targetStatus: 'assigned',
-                userRole: 'property_manager',
-                hasCompletionPhotos: false,
-                hasStartPhoto: false,
-                isInspection: wo.isInspection ?? false,
-                hasBeforePhoto: false,
-                hasAfterPhoto: false,
-              });
-              wo.status = 'assigned';
-              wo.vendorId = vendor.id;
-              wo.vendor = vendor;
-              if (vendorUser) {
-                wo.assignedToId = vendorUser.id;
-                wo.assignedTo = vendorUser;
-              }
-              wo.respondedAt = new Date().toISOString();
-              if (!wo.auditLog) wo.auditLog = [];
-              wo.auditLog.push({
-                id: `al-auto-${Date.now()}`,
-                workOrderId: wo.id,
-                userId: 'system',
-                fromStatus: 'open',
-                toStatus: 'assigned',
-                comment: 'Auto-assigned to preferred vendor',
-                createdAt: new Date().toISOString(),
-              });
-            } catch {
-              // If transition fails, leave as open
-            }
-          }
+      // Find newly created open orders without a vendor and try to auto-assign
+      const openUnassigned = workOrders.filter(wo => wo.status === 'open' && !wo.vendorId);
+      for (const wo of openUnassigned) {
+        const vendor = findPreferredVendor(wo.propertyId, wo.category, mappings, vendors);
+        if (vendor) {
+          updateWorkOrder.mutate({
+            id: wo.id,
+            status: 'assigned',
+            vendorId: vendor.id,
+            comment: 'Auto-assigned to preferred vendor',
+          });
         }
       }
     }
-    setWorkOrders(refreshed);
-  }, [autoAssign]);
+    refetch();
+  };
 
-  const baseOrders = useMemo(() => {
-    return user?.role === 'tenant'
-      ? workOrders.filter(wo => wo.createdById === user.id)
-      : workOrders;
-  }, [workOrders, user?.id, user?.role]);
+  const baseOrders = user?.role === 'tenant'
+    ? workOrders.filter(wo => wo.createdById === user.id)
+    : workOrders;
 
-  const applySearchAndFilters = useCallback((orders: WorkOrder[]) => {
+  const applySearchAndFilters = (orders: WorkOrder[]) => {
     let result = orders;
     if (search) {
       const q = search.toLowerCase();
@@ -121,34 +108,34 @@ export function WorkOrdersPage() {
       result = result.filter(wo => wo.category === categoryFilter);
     }
     return result;
-  }, [search, severityFilter, categoryFilter]);
+  };
 
-  const unassignedOrders = useMemo(() => {
+  const unassignedOrders = (() => {
     const orders = baseOrders.filter(wo => wo.status === 'open' && !wo.vendorId);
     return applySearchAndFilters(orders).sort((a, b) => {
       const sevDiff = SEVERITY_SORT_ORDER[a.severity] - SEVERITY_SORT_ORDER[b.severity];
       if (sevDiff !== 0) return sevDiff;
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
-  }, [baseOrders, applySearchAndFilters]);
+  })();
 
-  const activeOrders = useMemo(() => {
+  const activeOrders = (() => {
     const orders = baseOrders.filter(wo =>
       wo.status === 'assigned' || wo.status === 'in_progress' || wo.status === 'needs_review'
     );
     return applySearchAndFilters(orders).sort((a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-  }, [baseOrders, applySearchAndFilters]);
+  })();
 
-  const closedOrders = useMemo(() => {
+  const closedOrders = (() => {
     const orders = baseOrders.filter(wo => wo.status === 'closed' || wo.status === 'skipped');
     return applySearchAndFilters(orders).sort((a, b) => {
       const aDate = a.resolvedAt || a.updatedAt;
       const bDate = b.resolvedAt || b.updatedAt;
       return new Date(bDate).getTime() - new Date(aDate).getTime();
     });
-  }, [baseOrders, applySearchAndFilters]);
+  })();
 
   const currentOrders = activeTab === 'unassigned' ? unassignedOrders
     : activeTab === 'active' ? activeOrders
@@ -157,17 +144,14 @@ export function WorkOrdersPage() {
 
   const activeFilters = [severityFilter, categoryFilter].filter(f => f !== 'all').length;
 
-  const recurringTemplates = useMemo(() => {
-    let result = MOCK_RECURRING_TEMPLATES;
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(rt =>
-        rt.name.toLowerCase().includes(q) ||
-        rt.description.toLowerCase().includes(q)
-      );
-    }
-    return result;
-  }, [search]);
+  const filteredTemplates = (() => {
+    if (!search) return recurringTemplates;
+    const q = search.toLowerCase();
+    return recurringTemplates.filter(rt =>
+      rt.name.toLowerCase().includes(q) ||
+      rt.description.toLowerCase().includes(q)
+    );
+  })();
 
   return (
     <div className="space-y-6">
@@ -177,7 +161,7 @@ export function WorkOrdersPage() {
           <h1 className="text-2xl font-bold text-white">Work Orders</h1>
           <p className="text-sm text-gray-400 mt-1">
             {activeTab === 'recurring'
-              ? `${recurringTemplates.length} templates`
+              ? `${filteredTemplates.length} templates`
               : `${currentOrders.length} work orders`}
           </p>
         </div>
@@ -360,7 +344,7 @@ export function WorkOrdersPage() {
       {/* Recurring Tab Grid */}
       {activeTab === 'recurring' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-up">
-          {recurringTemplates.map(rt => (
+          {filteredTemplates.map(rt => (
             <div key={rt.id} className="glass-card p-6 flex flex-col justify-between">
               <div>
                 <div className="flex items-start justify-between mb-3">
@@ -378,13 +362,13 @@ export function WorkOrdersPage() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <Building2 size={14} className="text-gray-400" />
-                    <span className="truncate">Meridian Tower</span>
+                    <span className="truncate">{rt.propertyId}</span>
                   </div>
                 </div>
               </div>
             </div>
           ))}
-          {recurringTemplates.length === 0 && (
+          {filteredTemplates.length === 0 && (
             <div className="col-span-full glass-card py-16 flex flex-col items-center justify-center">
               <Search size={40} className="text-gray-600 mb-3" />
               <p className="text-sm text-gray-400">No recurring templates found</p>
@@ -424,7 +408,7 @@ export function WorkOrdersPage() {
         <WorkOrderDetailModal
           workOrder={selectedWO}
           onClose={() => {
-            setWorkOrders([...workOrders]);
+            refetch();
             setSelectedWO(null);
           }}
         />
