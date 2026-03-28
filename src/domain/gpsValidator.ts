@@ -5,7 +5,7 @@
 // Haversine formula. Zero framework imports.
 // ============================================================
 
-import { GPSCoordinate } from '../types';
+import { GPSCoordinate } from '../types/index.js';
 
 const EARTH_RADIUS_METERS = 6_371_000;
 

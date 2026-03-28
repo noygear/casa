@@ -5,7 +5,7 @@
 // complaint trends from work order data. Zero framework imports.
 // ============================================================
 
-import { WorkOrder } from '../types';
+import { WorkOrder } from '../types/index.js';
 
 export interface PropertyHealthScore {
   propertyId: string;

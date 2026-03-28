@@ -64,6 +64,7 @@ enum PhotoType {
   before
   after
   completion
+  start
 }
 
 // ── Users ────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ model User {
   email     String   @unique
   name      String
   role      UserRole
+  passwordHash String?
   phone     String?
   avatarUrl String?
   vendorId  String?
@@ -102,14 +104,19 @@ model Property {
   type        String   // e.g. "Office", "Retail", "Industrial", "Mixed-Use"
   totalSqFt   Int?
   yearBuilt   Int?
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  imageUrl         String?
+  latitude         Float?
+  longitude        Float?
+  occupancyPercent Float?
+  monthlyRevenue   Float?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relations
-  spaces      Space[]
-  workOrders  WorkOrder[]
-  slaConfigs  SLAConfiguration[]
+  spaces           Space[]
+  workOrders       WorkOrder[]
+  slaConfigs       SLAConfiguration[]
+  preferredVendors PreferredVendorMapping[]
 
   @@index([city, state])
 }
@@ -149,9 +156,10 @@ model Vendor {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  users        User[]
-  workOrders   WorkOrder[]
-  scoreRecords VendorScoreRecord[]
+  users            User[]
+  workOrders       WorkOrder[]
+  scoreRecords     VendorScoreRecord[]
+  preferredMappings PreferredVendorMapping[]
 
   @@index([isActive])
 }
@@ -188,6 +196,9 @@ model WorkOrder {
   slaResponseMin Int?       // Target response time in minutes
   slaResolveMin  Int?       // Target resolution time in minutes
 
+  // Cost
+  cost Float?
+
   // Recurring link
   recurringInstanceId String?            @unique
   recurringInstance   RecurringInstance?  @relation(fields: [recurringInstanceId], references: [id])
@@ -213,10 +224,14 @@ model WorkOrderPhoto {
   id          String    @id @default(uuid())
   workOrderId String
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
-  url         String    // CDN URL or base64 data URL
-  type        PhotoType
-  caption     String?
-  uploadedAt  DateTime  @default(now())
+  url           String    // CDN URL or base64 data URL
+  type          PhotoType
+  caption       String?
+  gpsLatitude   Float?
+  gpsLongitude  Float?
+  gpsAccuracy   Float?
+  gpsCapturedAt DateTime?
+  uploadedAt    DateTime  @default(now())
 
   @@index([workOrderId])
   @@index([type])
@@ -332,4 +347,32 @@ model SLAConfiguration {
 
   @@unique([propertyId, category, severity])
   @@index([propertyId])
+}
+
+// ── Preferred Vendor Mappings ────────────────────────────────
+
+model PreferredVendorMapping {
+  id         String            @id @default(uuid())
+  propertyId String
+  property   Property          @relation(fields: [propertyId], references: [id])
+  category   WorkOrderCategory
+  vendorId   String
+  vendor     Vendor            @relation(fields: [vendorId], references: [id])
+  priority   Int               @default(1) // 1 = primary, 2 = backup
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@unique([propertyId, category, vendorId])
+  @@index([propertyId, category])
+}
+
+// ── Token Revocation ─────────────────────────────────────────
+
+model RevokedToken {
+  id        String   @id @default(uuid())
+  jti       String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
 }

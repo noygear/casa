@@ -5,7 +5,7 @@
 // combination. Zero framework imports.
 // ============================================================
 
-import { WorkOrderCategory, Vendor, PreferredVendorMapping } from '../types';
+import { WorkOrderCategory, Vendor, PreferredVendorMapping } from '../types/index.js';
 
 /**
  * Finds the highest-priority active vendor for a property/category pair.
