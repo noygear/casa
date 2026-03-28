@@ -8,7 +8,7 @@
 // would be logged here for analytics and fee tracking.
 // ============================================================
 
-import { Vendor, VendorScoreRecord } from '../types';
+import { Vendor, VendorScoreRecord } from '../types/index.js';
 
 export interface VendorReferralSuggestion {
   underperformingVendor: Vendor;

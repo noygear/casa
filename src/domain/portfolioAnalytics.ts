@@ -5,7 +5,7 @@
 // Zero framework imports.
 // ============================================================
 
-import { Property, WorkOrder, Vendor, VendorScoreRecord } from '../types';
+import { Property, WorkOrder, Vendor, VendorScoreRecord } from '../types/index.js';
 
 export interface PortfolioSummary {
   totalProperties: number;

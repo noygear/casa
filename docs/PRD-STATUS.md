@@ -9,12 +9,12 @@ Last updated: 2026-03-28
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
 | C-01 | Ticket lifecycle with state machine enforcement | **Built (FE)** | `src/domain/workOrderStateMachine.ts` |
-| C-02 | RBAC for 4 roles | **Built (FE)** | Client-side only. Server-side enforcement needed with backend. |
+| C-02 | RBAC for 4 roles | **Built (FE+BE)** | Client-side + server-side enforcement via `authenticate` + `requireRole` middleware. |
 | C-03 | Mandatory photo evidence on completion | **Built (FE)** | GPS-tracked start + close photos added. |
 | C-04 | SLA tracking with severity indicators | **Built (FE)** | `src/domain/slaTracker.ts` |
-| C-11 | Real authentication (JWT + bcrypt) | **Not Built** | [#8](https://github.com/noygear/casa/issues/8) |
-| C-12 | Backend API (REST + Prisma + PostgreSQL) | **Not Built** | [#8](https://github.com/noygear/casa/issues/8) |
-| C-13 | Cloud photo storage (S3/Cloudinary) | **Not Built** | [#15](https://github.com/noygear/casa/issues/15) |
+| C-11 | Real authentication (JWT + bcrypt) | **Built (BE)** | `server/src/services/auth.service.ts` — JWT + bcrypt + httpOnly cookies + token revocation. [#11](https://github.com/noygear/casa/issues/11) |
+| C-12 | Backend API (REST + Prisma + PostgreSQL) | **Built (BE)** | Express + TypeScript + Prisma. 8 route files, 8 services, Zod validation, Fly.io deployment config. [#8](https://github.com/noygear/casa/issues/8) |
+| C-13 | Cloud photo storage (S3/Cloudinary) | **Not Built** | Base64 MVP in backend. Cloud storage pending. [#15](https://github.com/noygear/casa/issues/15) |
 
 ## Should-Have (MVP + 60 Days)
 
@@ -23,7 +23,7 @@ Last updated: 2026-03-28
 | C-05 | Automated vendor scoring engine | **Built (FE)** | `src/domain/vendorScoringEngine.ts` |
 | C-06 | Recurring maintenance templates | **Built (FE)** | Templates + instance generation |
 | C-07 | Repeat issue detection | **Built (FE)** | `src/domain/repeatIssueDetector.ts` |
-| C-08 | Immutable audit trail | **Built (FE)** | Audit log UI. Immutability enforced with backend. |
+| C-08 | Immutable audit trail | **Built (FE+BE)** | Audit log UI + immutable `WorkOrderAuditLog` in backend (no update/cascade delete). |
 | C-14 | Email notifications | **Not Built** | [#18](https://github.com/noygear/casa/issues/18) |
 | C-15 | Mobile-responsive vendor UI | **Partial** | Responsive CSS + GPS camera capture. Needs mobile optimization. [#18](https://github.com/noygear/casa/issues/18) |
 
@@ -48,6 +48,9 @@ Last updated: 2026-03-28
 | PM dashboard redesign | Property health scores, budget tracking, complaint volume charts |
 | Asset manager portfolio dashboard | Portfolio KPIs, cost trends, vendor audit table (fulfills C-09) |
 | Vendor referral engine | Detect underperformers, suggest alternatives, request introductions |
+| Backend API server | Express + TypeScript + Prisma + PostgreSQL with Fly.io deployment config |
+| Database seed script | Full demo dataset matching frontend mock data (7 users, 59 work orders, SLA configs) |
+| Token revocation (no Redis) | JWT blacklist via `RevokedToken` model in PostgreSQL |
 
 ## GitHub Issue Tracker
 

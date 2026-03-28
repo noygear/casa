@@ -5,7 +5,7 @@
 // checks. Zero framework imports.
 // ============================================================
 
-import { WorkOrderStatus, UserRole } from '../types';
+import { WorkOrderStatus, UserRole } from '../types/index.js';
 
 export class WorkOrderTransitionError extends Error {
   constructor(
