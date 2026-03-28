@@ -195,6 +195,14 @@ export interface SLAConfiguration {
   resolveTimeMin: number;
 }
 
+export interface PreferredVendorMapping {
+  id: string;
+  propertyId: string;
+  category: WorkOrderCategory;
+  vendorId: string;
+  priority: number; // 1 = primary, 2 = backup
+}
+
 // ── Utility Types ────────────────────────────────────────────
 
 export interface SLAStatus {
