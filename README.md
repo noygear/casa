@@ -69,39 +69,41 @@ Each step triggers an audit log entry. Evidence photos are visible to all author
 
 ## Getting Started
 
-### Frontend
+### Quick Start (Full Stack)
 
 ```bash
-git clone https://github.com/noygear/casa.git
-cd casa
+git clone https://github.com/AdamRehman-Create/CRE_Ticket_System.git
+cd CRE_Ticket_System
 npm install
-npm run dev
 ```
 
-Open `http://localhost:5173` and log in with any account from the table above.
-
-### Backend
+**Start the backend** (embedded Postgres — no external DB needed):
 
 ```bash
 cd server
 npm install
-cp .env.example .env          # Configure DATABASE_URL, JWT_SECRET
-npx prisma migrate dev        # Run migrations
-npm run seed                  # Seed demo data
-npm run dev                   # Start API on port 3001
+npm run dev                   # Starts API on port 3001 with auto-seeded data
 ```
 
-Default seed password for all demo accounts: `Casa2025!`
+**Start the frontend** (in a separate terminal):
+
+```bash
+npm run dev                   # Vite dev server (port 5173 or next available)
+```
+
+Open the URL shown in the terminal and log in with any account from the table above. Default password: `Casa2025!`
+
+The Vite dev server proxies `/api` requests to `localhost:3001` automatically — no CORS configuration needed.
 
 ### Scripts
 
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start frontend dev server with HMR |
-| `npm run build` | Production build (frontend) |
+| `npm run build` | TypeScript compile + Vite production build |
 | `npm run lint` | Run ESLint |
-| `cd server && npm run dev` | Start backend API server |
-| `cd server && npm run seed` | Seed database with demo data |
+| `cd server && npm run dev` | Start backend API server with embedded Postgres |
+| `cd server && npm run seed` | Re-seed database with demo data |
 
 ---
 
@@ -112,8 +114,10 @@ src/                          # Frontend (React)
 ├── components/               # Modals, cards, badges, layout
 ├── pages/                    # One file per route/role view
 ├── domain/                   # Pure business logic (shared with backend)
-├── contexts/                 # Auth context
-├── data/                     # Mock data
+├── contexts/                 # Auth context (JWT session)
+├── hooks/                    # React Query hooks (useWorkOrders, useVendors, etc.)
+├── lib/                      # API client (Axios) and React Query config
+├── data/                     # Legacy mock data
 └── types/                    # TypeScript interfaces
 
 server/                       # Backend (Express)

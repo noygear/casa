@@ -8,12 +8,12 @@ Casa is a maintenance operations platform for mid-market commercial real estate 
 
 ## Tech Stack
 
-- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + React Router v6 + Recharts
-- **Backend**: Node.js + Express + TypeScript (to be built -- see @.claude/rules/backend-build.md)
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + React Router v6 + Recharts + @tanstack/react-query
+- **Backend**: Node.js + Express + TypeScript
 - **Database**: PostgreSQL + Prisma ORM (schema at `prisma/schema.prisma`)
-- **Auth**: JWT + bcrypt + httpOnly cookies (to be built -- mock auth exists)
-- **Photo storage**: Cloudinary or AWS S3 (to be built -- base64 placeholder exists)
-- **Deployment**: Vercel (frontend), Railway or Fly.io (backend)
+- **Auth**: JWT + bcrypt + httpOnly cookies
+- **Photo storage**: Cloudinary or AWS S3 (base64 placeholder exists)
+- **Deployment**: Vercel (frontend), Fly.io (backend)
 
 ## Architecture
 
@@ -23,8 +23,9 @@ src/
 ├── pages/          # Route-level components
 ├── domain/         # Pure business logic — NO framework imports
 ├── contexts/       # React Context (auth)
-├── hooks/          # Custom hooks
-├── data/           # Mock data (replace with API calls)
+├── hooks/          # React Query hooks (useWorkOrders, useVendors, etc.)
+├── lib/            # API client (Axios) and React Query client
+├── data/           # Mock data (legacy — API hooks in use)
 ├── types/          # TypeScript interfaces and enums
 ├── App.tsx         # Main routing
 └── main.tsx        # Entry point
@@ -57,9 +58,16 @@ npm run preview   # Preview production build
 
 7. **No Redis. No Socket.io.** Keep the dependency footprint small.
 
-## What Needs Building
+## What's Been Built
 
-The frontend is production-ready with mock data. The backend does not exist yet. See `.claude/rules/backend-build.md` for the full build plan.
+- **Backend API** (Phase 1-2): Express + TypeScript + Prisma, 8 route files, JWT auth, seeded demo data. See `server/`.
+- **Frontend-backend integration** (Phase 3): All 13 mock data consumers replaced with React Query hooks. Auth uses real JWT flow with session persistence.
+
+## What Still Needs Building
+
+- **Cloud photo storage**: Replace base64 with Cloudinary or S3. See `.claude/rules/backend-build.md`.
+- **Email notifications**: Ticket events and SLA breach alerts (SendGrid or Resend).
+- **Fly.io deployment**: Backend is configured (`fly.toml`, `Dockerfile`) but not yet deployed.
 
 ---
 

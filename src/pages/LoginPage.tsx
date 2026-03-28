@@ -1,25 +1,43 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { MOCK_USERS, MOCK_VENDORS } from '../data/mockData';
-import { ROLE_LABELS } from '../types';
-import { Building2, LogIn, ChevronDown } from 'lucide-react';
+import { Building2, LogIn, Eye, EyeOff } from 'lucide-react';
+
+const DEMO_ACCOUNTS = [
+  { email: 'sarah.chen@casa.com', role: 'Asset Manager', color: 'text-violet-400' },
+  { email: 'james.porter@meridianpm.com', role: 'Property Manager', color: 'text-cre-400' },
+  { email: 'ops@alphahvac.com', role: 'Vendor (HVAC)', color: 'text-amber-400' },
+  { email: 'dispatch@sparkelectric.com', role: 'Vendor (Electrical)', color: 'text-amber-400' },
+  { email: 'tenant@greenleafcorp.com', role: 'Tenant', color: 'text-emerald-400' },
+];
 
 export function LoginPage() {
   const { login } = useAuth();
-  const [selectedUser, setSelectedUser] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = () => {
-    if (!selectedUser) {
-      setError('Please select a user');
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      setError('Please enter email and password');
       return;
     }
-    const success = login(selectedUser);
-    if (!success) setError('Login failed');
+    setIsSubmitting(true);
+    setError('');
+    const success = await login(email, password);
+    if (!success) {
+      setError('Invalid email or password');
+    }
+    setIsSubmitting(false);
   };
 
-  const selected = MOCK_USERS.find(u => u.email === selectedUser);
+  const fillDemo = (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword('Casa2025!');
+    setError('');
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-cre-950">
@@ -43,106 +61,81 @@ export function LoginPage() {
         {/* Login Card */}
         <div className="glass-card p-8">
           <h2 className="text-lg font-semibold text-white mb-1">Sign In</h2>
-          <p className="text-sm text-gray-400 mb-6">Select a demo user to continue</p>
+          <p className="text-sm text-gray-400 mb-6">Enter your credentials to continue</p>
 
-          {/* User Selector */}
-          <div className="relative mb-6">
-            <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
-              Demo User
-            </label>
-            <button
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-left hover:bg-white/8 transition-colors"
-              id="user-selector"
-            >
-              {selected ? (
-                <div>
-                  <div className="text-sm font-medium text-white">
-                    {selected.name}
-                    {selected.role === 'vendor' && selected.vendorId && (
-                      <span className="text-amber-400 font-normal">
-                        {' — '}
-                        {MOCK_VENDORS.find(v => v.id === selected.vendorId)?.companyName} 
-                        {' '}({MOCK_VENDORS.find(v => v.id === selected.vendorId)?.specialties[0]})
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-400">{ROLE_LABELS[selected.role]} · {selected.email}</div>
-                </div>
-              ) : (
-                <span className="text-sm text-gray-500">Choose a user...</span>
-              )}
-              <ChevronDown size={16} className={`text-gray-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
-            </button>
+          <form onSubmit={handleLogin}>
+            {/* Email */}
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                placeholder="you@casa.com"
+                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cre-500/50 focus:border-cre-500/50 transition-colors"
+                id="email-input"
+              />
+            </div>
 
-            {showDropdown && (
-              <div className="absolute z-20 w-full mt-2 py-1 bg-cre-950 border border-white/10 rounded-xl shadow-2xl max-h-64 overflow-y-auto">
-                {MOCK_USERS.map(user => (
-                  <button
-                    key={user.id}
-                    onClick={() => { setSelectedUser(user.email); setShowDropdown(false); setError(''); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left"
-                    id={`select-user-${user.id}`}
-                  >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                      user.role === 'asset_manager' ? 'bg-violet-500/20 text-violet-400'
-                        : user.role === 'property_manager' ? 'bg-cre-500/20 text-cre-400'
-                        : user.role === 'vendor' ? 'bg-amber-500/20 text-amber-400'
-                        : 'bg-emerald-500/20 text-emerald-400'
-                    }`}>
-                      {user.name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-white">
-                        {user.name}
-                        {user.role === 'vendor' && user.vendorId && (
-                          <span className="text-amber-400 font-normal">
-                            {' — '}
-                            {MOCK_VENDORS.find(v => v.id === user.vendorId)?.companyName} 
-                            {' '}({MOCK_VENDORS.find(v => v.id === user.vendorId)?.specialties[0]})
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-gray-500">{ROLE_LABELS[user.role]}</div>
-                    </div>
-                  </button>
-                ))}
+            {/* Password */}
+            <div className="mb-6">
+              <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                  placeholder="Enter password"
+                  className="w-full px-4 py-3 pr-12 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cre-500/50 focus:border-cre-500/50 transition-colors"
+                  id="password-input"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="mb-4 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-sm text-rose-400">
+                {error}
               </div>
             )}
-          </div>
 
-          {error && (
-            <div className="mb-4 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-sm text-rose-400">
-              {error}
-            </div>
-          )}
+            <button
+              type="submit"
+              disabled={isSubmitting || !email || !password}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-cre-500 to-cre-600 text-white font-semibold text-sm hover:from-cre-400 hover:to-cre-500 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-cre-500/20"
+              id="login-button"
+            >
+              <LogIn size={16} />
+              {isSubmitting ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
 
-          <button
-            onClick={handleLogin}
-            disabled={!selectedUser}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-cre-500 to-cre-600 text-white font-semibold text-sm hover:from-cre-400 hover:to-cre-500 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-cre-500/20"
-            id="login-button"
-          >
-            <LogIn size={16} />
-            Sign In
-          </button>
-
-          {/* Role Legend */}
+          {/* Demo Accounts */}
           <div className="mt-6 pt-5 border-t border-white/5">
-            <p className="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-3">Roles</p>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { role: 'Asset Manager', color: 'bg-violet-500', desc: 'Full authority' },
-                { role: 'Property Manager', color: 'bg-cre-500', desc: 'Day-to-day ops' },
-                { role: 'Vendor', color: 'bg-amber-500', desc: 'Executes work' },
-                { role: 'Tenant', color: 'bg-emerald-500', desc: 'Submits requests' },
-              ].map(r => (
-                <div key={r.role} className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${r.color}`} />
-                  <span className="text-[10px] text-gray-400">{r.role}</span>
-                </div>
+            <p className="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-3">Demo Accounts</p>
+            <div className="space-y-1.5">
+              {DEMO_ACCOUNTS.map((acct) => (
+                <button
+                  key={acct.email}
+                  onClick={() => fillDemo(acct.email)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-left group"
+                >
+                  <span className="text-xs text-gray-400 group-hover:text-gray-300 truncate">{acct.email}</span>
+                  <span className={`text-[10px] ${acct.color} shrink-0 ml-2`}>{acct.role}</span>
+                </button>
               ))}
             </div>
+            <p className="text-[10px] text-gray-600 mt-2">Password: Casa2025!</p>
           </div>
         </div>
       </div>

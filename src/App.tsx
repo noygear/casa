@@ -12,13 +12,16 @@ import { LandingPage } from './pages/LandingPage';
 import { SLACompliancePage } from './pages/SLACompliancePage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return null;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <AppShell>{children}</AppShell>;
 }
 
 export default function App() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) return null;
 
   return (
     <Routes>
