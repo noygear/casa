@@ -46,6 +46,7 @@ export const MOCK_PROPERTIES: Property[] = [
     city: 'Dallas', state: 'TX', zipCode: '75201', type: 'Office',
     totalSqFt: 285000, yearBuilt: 2018,
     latitude: 32.7767, longitude: -96.7970,
+    occupancyPercent: 92, monthlyRevenue: 425000,
     createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z',
   },
   {
@@ -53,6 +54,7 @@ export const MOCK_PROPERTIES: Property[] = [
     city: 'Fort Worth', state: 'TX', zipCode: '76102', type: 'Mixed-Use',
     totalSqFt: 420000, yearBuilt: 2015,
     latitude: 32.7555, longitude: -97.3308,
+    occupancyPercent: 87, monthlyRevenue: 580000,
     createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z',
   },
   {
@@ -60,6 +62,7 @@ export const MOCK_PROPERTIES: Property[] = [
     city: 'Plano', state: 'TX', zipCode: '75024', type: 'Industrial',
     totalSqFt: 180000, yearBuilt: 2020,
     latitude: 33.0198, longitude: -96.6989,
+    occupancyPercent: 95, monthlyRevenue: 210000,
     createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z',
   },
 ];
