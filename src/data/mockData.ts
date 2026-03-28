@@ -45,18 +45,21 @@ export const MOCK_PROPERTIES: Property[] = [
     id: 'p-001', name: 'Meridian Tower', address: '1200 Commerce Blvd',
     city: 'Dallas', state: 'TX', zipCode: '75201', type: 'Office',
     totalSqFt: 285000, yearBuilt: 2018,
+    latitude: 32.7767, longitude: -96.7970,
     createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z',
   },
   {
     id: 'p-002', name: 'Riverfront Plaza', address: '800 Trinity Ave',
     city: 'Fort Worth', state: 'TX', zipCode: '76102', type: 'Mixed-Use',
     totalSqFt: 420000, yearBuilt: 2015,
+    latitude: 32.7555, longitude: -97.3308,
     createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z',
   },
   {
     id: 'p-003', name: 'Oakmont Business Park', address: '3500 Innovation Dr',
     city: 'Plano', state: 'TX', zipCode: '75024', type: 'Industrial',
     totalSqFt: 180000, yearBuilt: 2020,
+    latitude: 33.0198, longitude: -96.6989,
     createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z',
   },
 ];

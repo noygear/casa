@@ -32,7 +32,7 @@ const TRANSITION_MAP: Record<WorkOrderStatus, TransitionRule[]> = {
     { to: 'skipped', allowedRoles: ['property_manager', 'asset_manager'] },
   ],
   assigned: [
-    { to: 'in_progress', allowedRoles: ['vendor', 'property_manager', 'asset_manager'] },
+    { to: 'in_progress', allowedRoles: ['vendor', 'property_manager', 'asset_manager'], requiresPhotos: true },
     { to: 'skipped', allowedRoles: ['property_manager', 'asset_manager'] },
   ],
   in_progress: [
@@ -52,6 +52,7 @@ export interface TransitionContext {
   targetStatus: WorkOrderStatus;
   userRole: UserRole;
   hasCompletionPhotos: boolean;
+  hasStartPhoto: boolean;
   isInspection: boolean;
   hasBeforePhoto: boolean;
   hasAfterPhoto: boolean;
@@ -87,12 +88,22 @@ export function validateTransition(ctx: TransitionContext): void {
     );
   }
 
-  if (rule.requiresPhotos && !ctx.hasCompletionPhotos) {
-    throw new WorkOrderTransitionError(
-      ctx.currentStatus,
-      ctx.targetStatus,
-      'At least one completion photo is required before submitting for review.'
-    );
+  if (rule.requiresPhotos) {
+    if (ctx.currentStatus === 'assigned' && ctx.targetStatus === 'in_progress') {
+      if (!ctx.hasStartPhoto) {
+        throw new WorkOrderTransitionError(
+          ctx.currentStatus,
+          ctx.targetStatus,
+          'A GPS-tracked start photo is required to prove on-site arrival before starting work.'
+        );
+      }
+    } else if (!ctx.hasCompletionPhotos) {
+      throw new WorkOrderTransitionError(
+        ctx.currentStatus,
+        ctx.targetStatus,
+        'At least one completion photo is required before submitting for review.'
+      );
+    }
   }
 
   if (ctx.isInspection && ctx.targetStatus === 'needs_review') {
