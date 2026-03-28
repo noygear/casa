@@ -2,7 +2,7 @@
 // Mock Data — CRE Operations Platform
 // ============================================================
 
-import { User, Property, Space, Vendor, WorkOrder, VendorScoreRecord, RecurringTemplate } from '../types';
+import { User, Property, Space, Vendor, WorkOrder, VendorScoreRecord, RecurringTemplate, PreferredVendorMapping } from '../types';
 import { subDays, addHours, subHours } from 'date-fns';
 
 // ── Users ────────────────────────────────────────────────────
@@ -371,4 +371,19 @@ export const MOCK_RECURRING_TEMPLATES: RecurringTemplate[] = [
     vendorId: 'v-003', isActive: true,
     createdAt: '2025-02-01T00:00:00Z', updatedAt: '2025-02-01T00:00:00Z',
   },
+];
+
+// ── Preferred Vendor Mappings ───────────────────────────────
+
+export const MOCK_PREFERRED_VENDOR_MAPPINGS: PreferredVendorMapping[] = [
+  { id: 'pvm-001', propertyId: 'p-001', category: 'hvac', vendorId: 'v-001', priority: 1 },
+  { id: 'pvm-002', propertyId: 'p-001', category: 'electrical', vendorId: 'v-002', priority: 1 },
+  { id: 'pvm-003', propertyId: 'p-001', category: 'janitorial', vendorId: 'v-003', priority: 1 },
+  { id: 'pvm-004', propertyId: 'p-001', category: 'elevator', vendorId: 'v-004', priority: 1 },
+  { id: 'pvm-005', propertyId: 'p-002', category: 'hvac', vendorId: 'v-001', priority: 1 },
+  { id: 'pvm-006', propertyId: 'p-002', category: 'electrical', vendorId: 'v-002', priority: 1 },
+  { id: 'pvm-007', propertyId: 'p-002', category: 'elevator', vendorId: 'v-004', priority: 1 },
+  { id: 'pvm-008', propertyId: 'p-002', category: 'janitorial', vendorId: 'v-003', priority: 1 },
+  { id: 'pvm-009', propertyId: 'p-003', category: 'hvac', vendorId: 'v-001', priority: 1 },
+  { id: 'pvm-010', propertyId: 'p-003', category: 'electrical', vendorId: 'v-002', priority: 1 },
 ];
