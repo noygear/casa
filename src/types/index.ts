@@ -57,6 +57,8 @@ export interface Property {
   imageUrl?: string;
   latitude?: number;
   longitude?: number;
+  occupancyPercent?: number;
+  monthlyRevenue?: number;
   createdAt: string;
   updatedAt: string;
   spaces?: Space[];

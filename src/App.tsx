@@ -4,6 +4,7 @@ import { AppShell } from './components/AppShell';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { TenantDashboardPage } from './pages/TenantDashboardPage';
+import { AssetManagerDashboardPage } from './pages/AssetManagerDashboardPage';
 import { WorkOrdersPage } from './pages/WorkOrdersPage';
 import { VendorsPage } from './pages/VendorsPage';
 import { PropertiesPage } from './pages/PropertiesPage';
@@ -28,7 +29,9 @@ export default function App() {
       />
       <Route path="/dashboard" element={
         <ProtectedRoute>
-          {user?.role === 'tenant' ? <TenantDashboardPage /> : <DashboardPage />}
+          {user?.role === 'tenant' ? <TenantDashboardPage /> :
+           user?.role === 'asset_manager' ? <AssetManagerDashboardPage /> :
+           <DashboardPage />}
         </ProtectedRoute>
       } />
       <Route path="/work-orders" element={<ProtectedRoute><WorkOrdersPage /></ProtectedRoute>} />
