@@ -36,7 +36,7 @@ export function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-cre-500 to-cre-700 mb-4 shadow-xl shadow-cre-500/20">
             <Building2 size={32} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Cardo</h1>
+          <h1 className="text-2xl font-bold text-white">Casa</h1>
           <p className="text-sm text-gray-400 mt-1">Operations Platform</p>
         </div>
 

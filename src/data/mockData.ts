@@ -9,7 +9,7 @@ import { subDays, addHours, subHours } from 'date-fns';
 
 export const MOCK_USERS: User[] = [
   {
-    id: 'u-001', email: 'sarah.chen@cardo.com', name: 'Sarah Chen',
+    id: 'u-001', email: 'sarah.chen@casa.com', name: 'Sarah Chen',
     role: 'asset_manager', createdAt: '2025-01-15T00:00:00Z', updatedAt: '2025-01-15T00:00:00Z',
   },
   {

@@ -16,6 +16,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.glow-gradient-bg {
+  background: linear-gradient(120deg, #1f2937 0%, #0f172a 25%, #1e3a8a 50%, #3b82f6 75%, #1e40af 100%);
+  background-size: 200% 200%;
+}
+
 .bg-noise {
   position: absolute;
   inset: 0;

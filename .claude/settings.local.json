@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5174/)",
+      "Bash(pkill -f \"vite\")",
+      "Bash(npm run:*)",
+      "Bash(for f:*)",
+      "Bash(do cp:*)",
+      "Bash(done)",
+      "Bash(cp -r .claude /tmp/casa-changes/)",
+      "Bash(cp CLAUDE.md /tmp/casa-changes/)",
+      "Bash(cp /tmp/casa-changes/modified/index.css src/index.css)",
+      "Bash(cp /tmp/casa-changes/modified/LandingPage.tsx src/pages/LandingPage.tsx)",
+      "Bash(cp /tmp/casa-changes/modified/LoginPage.tsx src/pages/LoginPage.tsx)",
+      "Bash(cp /tmp/casa-changes/modified/AppShell.tsx src/components/AppShell.tsx)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
