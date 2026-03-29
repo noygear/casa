@@ -8,6 +8,8 @@ declare global {
         email: string;
         role: UserRole;
         vendorId: string | null;
+        propertyId: string | null;
+        spaceId: string | null;
       };
     }
   }

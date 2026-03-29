@@ -47,6 +47,8 @@ export async function login(email: string, password: string) {
       email: user.email,
       role: user.role,
       vendorId: user.vendorId,
+      propertyId: user.propertyId,
+      spaceId: user.spaceId,
       jti,
     },
     getJwtSecret(),

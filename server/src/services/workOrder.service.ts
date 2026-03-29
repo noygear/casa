@@ -16,6 +16,7 @@ const WORK_ORDER_INCLUDE = {
   assignedTo: { select: { id: true, name: true, email: true, role: true, vendorId: true } },
   vendor: true,
   photos: { orderBy: { uploadedAt: 'asc' as const } },
+  invoiceLines: { orderBy: { createdAt: 'asc' as const } },
   auditLog: {
     orderBy: { createdAt: 'asc' as const },
     include: { user: { select: { id: true, name: true, role: true } } },
@@ -102,11 +103,16 @@ export async function createWorkOrder(
     assignedToId?: string | null;
     dueDate?: string | null;
   },
-  userId: string
+  user: { id: string; role: string; propertyId: string | null }
 ) {
   // Verify property exists
   const property = await prisma.property.findUnique({ where: { id: data.propertyId } });
   if (!property) throw new NotFoundError('Property', data.propertyId);
+
+  // Tenants can only create work orders for their assigned property
+  if (user.role === 'tenant' && user.propertyId && data.propertyId !== user.propertyId) {
+    throw new ForbiddenError('You can only submit work orders for your assigned property');
+  }
 
   // Look up SLA config for auto-populating SLA times
   const slaConfig = await prisma.sLAConfiguration.findUnique({
@@ -185,7 +191,7 @@ export async function createWorkOrder(
       spaceId: data.spaceId || undefined,
       vendorId: vendorId || undefined,
       assignedToId: assignedToId || undefined,
-      createdById: userId,
+      createdById: user.id,
       status,
       dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
       slaResponseMin: slaConfig?.responseTimeMin,
@@ -198,7 +204,7 @@ export async function createWorkOrder(
   await prisma.workOrderAuditLog.create({
     data: {
       workOrderId: workOrder.id,
-      userId,
+      userId: user.id,
       fromStatus: '',
       toStatus: status,
       comment: status === 'assigned' ? 'Auto-assigned to preferred vendor' : 'Work order created',

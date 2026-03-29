@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { X, Wrench, MapPin, AlertCircle } from 'lucide-react';
+import { X, Wrench, MapPin, AlertCircle, Building2 } from 'lucide-react';
 import { useProperties } from '../hooks/useProperties';
 import { useCreateWorkOrder } from '../hooks/useWorkOrders';
+import { useAuth } from '../contexts/AuthContext';
 import { CATEGORY_LABELS, Severity, WorkOrderCategory } from '../types';
 
 interface NewWorkOrderModalProps {
@@ -10,11 +11,14 @@ interface NewWorkOrderModalProps {
 }
 
 export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps) {
+  const { user } = useAuth();
   const { data: propertiesData } = useProperties();
   const createWorkOrder = useCreateWorkOrder();
 
-  const [propertyId, setPropertyId] = useState('');
-  const [spaceId, setSpaceId] = useState('');
+  const isTenantWithProperty = user?.role === 'tenant' && !!user.propertyId;
+
+  const [propertyId, setPropertyId] = useState(user?.propertyId || '');
+  const [spaceId, setSpaceId] = useState(user?.spaceId || '');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<WorkOrderCategory>('general');
@@ -72,35 +76,56 @@ export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps)
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Location</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
-                  <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                  <select
-                    required
-                    value={propertyId}
-                    onChange={e => { setPropertyId(e.target.value); setSpaceId(''); }}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-cre-500/50 appearance-none cursor-pointer"
-                  >
-                    <option value="" className="bg-cre-950 text-gray-400">Select Property...</option>
-                    {properties.map(p => (
-                      <option key={p.id} value={p.id} className="bg-cre-950 text-white">{p.name}</option>
-                    ))}
-                  </select>
+              {isTenantWithProperty ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white">
+                    <Building2 size={16} className="text-cre-400 shrink-0" />
+                    <span>{selectedProperty?.name || 'Your Property'}</span>
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={spaceId}
+                      onChange={e => setSpaceId(e.target.value)}
+                      className="w-full pl-4 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-cre-500/50 appearance-none cursor-pointer"
+                    >
+                      <option value="" className="bg-cre-950 text-gray-400">Select Space (Optional)...</option>
+                      {spaces.map(s => (
+                        <option key={s.id} value={s.id} className="bg-cre-950 text-white">{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div className="relative">
-                  <select
-                    value={spaceId}
-                    onChange={e => setSpaceId(e.target.value)}
-                    disabled={!propertyId}
-                    className="w-full pl-4 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-cre-500/50 appearance-none cursor-pointer disabled:opacity-50"
-                  >
-                    <option value="" className="bg-cre-950 text-gray-400">Select Space (Optional)...</option>
-                    {spaces.map(s => (
-                      <option key={s.id} value={s.id} className="bg-cre-950 text-white">{s.name}</option>
-                    ))}
-                  </select>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="relative">
+                    <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <select
+                      required
+                      value={propertyId}
+                      onChange={e => { setPropertyId(e.target.value); setSpaceId(''); }}
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-cre-500/50 appearance-none cursor-pointer"
+                    >
+                      <option value="" className="bg-cre-950 text-gray-400">Select Property...</option>
+                      {properties.map(p => (
+                        <option key={p.id} value={p.id} className="bg-cre-950 text-white">{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={spaceId}
+                      onChange={e => setSpaceId(e.target.value)}
+                      disabled={!propertyId}
+                      className="w-full pl-4 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-cre-500/50 appearance-none cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="" className="bg-cre-950 text-gray-400">Select Space (Optional)...</option>
+                      {spaces.map(s => (
+                        <option key={s.id} value={s.id} className="bg-cre-950 text-white">{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

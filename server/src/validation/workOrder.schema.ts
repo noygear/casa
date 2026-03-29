@@ -7,17 +7,17 @@ export const createWorkOrderSchema = z.object({
   severity: severityEnum.default('minor'),
   category: categoryEnum.default('general'),
   isInspection: z.boolean().default(false),
-  propertyId: z.string().uuid(),
-  spaceId: z.string().uuid().optional().nullable(),
-  vendorId: z.string().uuid().optional().nullable(),
-  assignedToId: z.string().uuid().optional().nullable(),
+  propertyId: z.string().min(1),
+  spaceId: z.string().min(1).optional().nullable(),
+  vendorId: z.string().min(1).optional().nullable(),
+  assignedToId: z.string().min(1).optional().nullable(),
   dueDate: z.string().datetime().optional().nullable(),
 });
 
 export const updateWorkOrderSchema = z.object({
   status: workOrderStatusEnum.optional(),
-  assignedToId: z.string().uuid().optional().nullable(),
-  vendorId: z.string().uuid().optional().nullable(),
+  assignedToId: z.string().min(1).optional().nullable(),
+  vendorId: z.string().min(1).optional().nullable(),
   cost: z.number().min(0).optional().nullable(),
   comment: z.string().max(1000).optional(),
 });
@@ -26,10 +26,10 @@ export const workOrderQuerySchema = z.object({
   status: workOrderStatusEnum.optional(),
   severity: severityEnum.optional(),
   category: categoryEnum.optional(),
-  propertyId: z.string().uuid().optional(),
-  vendorId: z.string().uuid().optional(),
-  assignedToId: z.string().uuid().optional(),
-  createdById: z.string().uuid().optional(),
+  propertyId: z.string().min(1).optional(),
+  vendorId: z.string().min(1).optional(),
+  assignedToId: z.string().min(1).optional(),
+  createdById: z.string().min(1).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });

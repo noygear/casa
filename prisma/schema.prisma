@@ -65,6 +65,7 @@ enum PhotoType {
   after
   completion
   start
+  invoice
 }
 
 // ── Users ────────────────────────────────────────────────────
@@ -77,10 +78,14 @@ model User {
   passwordHash String?
   phone     String?
   avatarUrl String?
-  vendorId  String?
-  vendor    Vendor?  @relation(fields: [vendorId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  vendorId   String?
+  vendor     Vendor?   @relation(fields: [vendorId], references: [id])
+  propertyId String?
+  property   Property? @relation("TenantProperty", fields: [propertyId], references: [id])
+  spaceId    String?
+  space      Space?    @relation("TenantSpace", fields: [spaceId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   // Relations
   createdWorkOrders  WorkOrder[]       @relation("CreatedBy")
@@ -90,6 +95,7 @@ model User {
 
   @@index([role])
   @@index([vendorId])
+  @@index([propertyId])
 }
 
 // ── Asset Hierarchy ──────────────────────────────────────────
@@ -114,6 +120,7 @@ model Property {
 
   // Relations
   spaces           Space[]
+  tenants          User[]   @relation("TenantProperty")
   workOrders       WorkOrder[]
   slaConfigs       SLAConfiguration[]
   preferredVendors PreferredVendorMapping[]
@@ -134,6 +141,7 @@ model Space {
   updatedAt  DateTime @updatedAt
 
   // Relations
+  tenants    User[]       @relation("TenantSpace")
   workOrders WorkOrder[]
 
   @@index([propertyId])
@@ -207,9 +215,10 @@ model WorkOrder {
   updatedAt DateTime @updatedAt
 
   // Relations
-  photos      WorkOrderPhoto[]
-  auditLog    WorkOrderAuditLog[]
-  inspections InspectionReport[]
+  photos       WorkOrderPhoto[]
+  auditLog     WorkOrderAuditLog[]
+  inspections  InspectionReport[]
+  invoiceLines InvoiceLineItem[]
 
   @@index([status])
   @@index([propertyId])
@@ -364,6 +373,22 @@ model PreferredVendorMapping {
 
   @@unique([propertyId, category, vendorId])
   @@index([propertyId, category])
+}
+
+// ── Invoice Line Items ───────────────────────────────────────
+
+model InvoiceLineItem {
+  id          String    @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  description String
+  category    String?   // "labor", "materials", "equipment", "other"
+  quantity    Float     @default(1)
+  unitPrice   Float
+  total       Float
+  createdAt   DateTime  @default(now())
+
+  @@index([workOrderId])
 }
 
 // ── Token Revocation ─────────────────────────────────────────

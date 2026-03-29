@@ -8,6 +8,8 @@ interface JwtPayload {
   email: string;
   role: string;
   vendorId: string | null;
+  propertyId: string | null;
+  spaceId: string | null;
   jti: string;
 }
 
@@ -39,6 +41,8 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
       email: payload.email,
       role: payload.role as any,
       vendorId: payload.vendorId,
+      propertyId: payload.propertyId,
+      spaceId: payload.spaceId,
     };
 
     next();

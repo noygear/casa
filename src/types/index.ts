@@ -21,7 +21,7 @@ export type WorkOrderCategory =
 
 export type MaintenanceFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually' | 'custom';
 
-export type PhotoType = 'before' | 'after' | 'completion' | 'start';
+export type PhotoType = 'before' | 'after' | 'completion' | 'start' | 'invoice';
 
 export interface GPSCoordinate {
   latitude: number;
@@ -40,6 +40,8 @@ export interface User {
   phone?: string;
   avatarUrl?: string;
   vendorId?: string;
+  propertyId?: string;
+  spaceId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -120,6 +122,18 @@ export interface WorkOrder {
   photos?: WorkOrderPhoto[];
   auditLog?: WorkOrderAuditLog[];
   inspections?: InspectionReport[];
+  invoiceLines?: InvoiceLineItem[];
+}
+
+export interface InvoiceLineItem {
+  id: string;
+  workOrderId: string;
+  description: string;
+  category?: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  createdAt: string;
 }
 
 export interface WorkOrderPhoto {

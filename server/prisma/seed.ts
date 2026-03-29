@@ -48,16 +48,17 @@ async function main() {
     { id: 'u-002', email: 'james.porter@meridianpm.com', name: 'James Porter', role: 'property_manager' as const, passwordHash },
     { id: 'u-003', email: 'ops@alphahvac.com', name: 'Mike Rodriguez', role: 'vendor' as const, vendorId: 'v-001', passwordHash },
     { id: 'u-004', email: 'dispatch@sparkelectric.com', name: 'Lisa Tran', role: 'vendor' as const, vendorId: 'v-002', passwordHash },
-    { id: 'u-005', email: 'tenant@greenleafcorp.com', name: 'David Kim', role: 'tenant' as const, passwordHash },
+    { id: 'u-005', email: 'tenant@greenleafcorp.com', name: 'David Kim', role: 'tenant' as const, propertyId: 'p-001', spaceId: 's-001', passwordHash },
     { id: 'u-006', email: 'martinez@cleanpro.com', name: 'Carlos Martinez', role: 'vendor' as const, vendorId: 'v-003', passwordHash },
-    { id: 'u-007', email: 'j.smith@retailco.com', name: 'John Smith', role: 'tenant' as const, passwordHash },
+    { id: 'u-007', email: 'j.smith@retailco.com', name: 'John Smith', role: 'tenant' as const, propertyId: 'p-002', spaceId: 's-006', passwordHash },
   ];
 
   for (const u of users) {
+    const { propertyId, spaceId, ...userData } = u as any;
     await prisma.user.upsert({
       where: { id: u.id },
-      update: u,
-      create: u,
+      update: { ...userData, propertyId: propertyId || null, spaceId: spaceId || null },
+      create: { ...userData, propertyId: propertyId || null, spaceId: spaceId || null },
     });
   }
 

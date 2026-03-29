@@ -8,9 +8,9 @@ export const createRecurringTemplateSchema = z.object({
   severity: severityEnum.default('minor'),
   frequency: frequencyEnum,
   customDays: z.number().int().positive().optional(),
-  propertyId: z.string().uuid(),
-  spaceId: z.string().uuid().optional(),
-  vendorId: z.string().uuid().optional(),
+  propertyId: z.string().min(1),
+  spaceId: z.string().min(1).optional(),
+  vendorId: z.string().min(1).optional(),
 });
 
 export const updateRecurringTemplateSchema = z.object({
@@ -19,6 +19,6 @@ export const updateRecurringTemplateSchema = z.object({
   severity: severityEnum.optional(),
   frequency: frequencyEnum.optional(),
   customDays: z.number().int().positive().optional().nullable(),
-  vendorId: z.string().uuid().optional().nullable(),
+  vendorId: z.string().min(1).optional().nullable(),
   isActive: z.boolean().optional(),
 });

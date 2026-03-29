@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const uuidParam = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
 });
 
 export const paginationQuery = z.object({
