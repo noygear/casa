@@ -14,7 +14,7 @@ import { SLACompliancePage } from './pages/SLACompliancePage';
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return null;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/" replace />;
   return <AppShell>{children}</AppShell>;
 }
 
@@ -41,7 +41,7 @@ export default function App() {
       <Route path="/vendors" element={<ProtectedRoute><VendorsPage /></ProtectedRoute>} />
       <Route path="/properties" element={<ProtectedRoute><PropertiesPage /></ProtectedRoute>} />
       <Route path="/sla-compliance" element={<ProtectedRoute><SLACompliancePage /></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />} />
     </Routes>
   );
 }

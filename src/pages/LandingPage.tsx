@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Terminal, Calendar as CalendarIcon, MousePointer2 } from 'lucide-react';
+import { DotGrid } from '../components/DotGrid';
 
 export function LandingPage() {
   // Custom hook for scroll animations
@@ -77,9 +78,10 @@ export function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-obsidian text-cool-grey font-sans relative selection:bg-cre-500 selection:text-white overflow-x-hidden">
-      {/* Global CSS Noise Overlay */}
-      <div className="bg-noise" />
+    <div className="min-h-screen bg-black text-cool-grey font-sans relative selection:bg-cre-500 selection:text-white overflow-x-hidden">
+      {/* Interactive Dot Grid Background */}
+      <DotGrid />
+
 
       {/* A. NAVBAR */}
       <nav className="relative z-20 flex items-center justify-between px-6 py-6 md:px-12">
@@ -181,7 +183,7 @@ export function LandingPage() {
       </main>
 
       {/* D. PHILOSOPHY SECTION */}
-      <section className="relative z-10 py-32 border-y border-white/5 bg-[#0A0A0A] overflow-hidden">
+      <section className="relative z-10 py-32 border-y border-white/5 overflow-hidden">
         <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-1000 max-w-5xl mx-auto px-6 md:px-12 text-center">
           <h3 className="text-3xl md:text-5xl font-serif italic text-white leading-tight mb-8">
             Most property management focuses on:<br/>
