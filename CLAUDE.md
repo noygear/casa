@@ -30,7 +30,7 @@ src/
 ├── App.tsx         # Main routing
 └── main.tsx        # Entry point
 prisma/
-└── schema.prisma   # 14 production-ready models
+└── schema.prisma   # 16 production-ready models
 ```
 
 ## Key Commands
@@ -62,6 +62,12 @@ npm run preview   # Preview production build
 
 - **Backend API** (Phase 1-2): Express + TypeScript + Prisma, 8 route files, JWT auth, seeded demo data. See `server/`.
 - **Frontend-backend integration** (Phase 3): All 13 mock data consumers replaced with React Query hooks. Auth uses real JWT flow with session persistence.
+- **Tenant-property binding**: Tenants scoped to assigned property/space. Server-side enforcement on work order creation.
+- **Vendor role filtering**: Vendors see only their assigned work orders. Hidden "Unassigned" tab and "New Work Order" button.
+- **AI invoice parsing**: Vendors upload invoice images; Anthropic Claude Vision extracts structured line items for review and confirmation.
+- **Interactive landing page**: Canvas-based dot grid background with mouse repulsion effect. Pitch-black aesthetic.
+- **Auth UX improvements**: Sign-out redirects to landing page. Specific login error messages (server down vs bad credentials).
+- **In-app feedback button**: Floating star-rating + type selector with Google Sheets webhook integration.
 
 ## What Still Needs Building
 

@@ -2,7 +2,7 @@
 
 Source of truth for what's built vs not. Cross-references PRD v1.0 (March 2026).
 
-Last updated: 2026-03-28
+Last updated: 2026-03-29
 
 ## Must-Have (MVP Gate — May 1, 2026)
 
@@ -36,7 +36,7 @@ Last updated: 2026-03-28
 | C-16 | Blockchain-verified audit trails | **Not Built** | [#25](https://github.com/noygear/casa/issues/25) |
 | C-17 | Vendor micro-credentialing | **Not Built** | [#28](https://github.com/noygear/casa/issues/28) |
 | C-18 | AI maintenance prediction | **Not Built** | [#31](https://github.com/noygear/casa/issues/31) |
-| C-19 | Tenant portal with maintenance history | **Not Built** | [#34](https://github.com/noygear/casa/issues/34) |
+| C-19 | Tenant portal with maintenance history | **Partial** | Tenant-property binding built. Tenants scoped to their property with server-side enforcement. Full history view pending. [#34](https://github.com/noygear/casa/issues/34) |
 
 ## Features Built Beyond PRD
 
@@ -52,6 +52,12 @@ Last updated: 2026-03-28
 | Database seed script | Full demo dataset matching frontend mock data (7 users, 59 work orders, SLA configs) |
 | Token revocation (no Redis) | JWT blacklist via `RevokedToken` model in PostgreSQL |
 | Frontend-backend integration | React Query hooks replace all mock data. Vite proxy, session persistence, real auth flow. |
+| Tenant-property binding | Tenants scoped to assigned property/space. Server-side enforcement on work order creation. |
+| Vendor role filtering | Vendors see only their assigned work orders. Hidden "Unassigned" tab and "New Work Order" button. |
+| AI invoice parsing | Upload invoice images; Anthropic Claude Vision extracts structured line items for review/confirm. |
+| Interactive landing page | Canvas dot grid with mouse repulsion effect. Pitch-black background. |
+| Auth UX improvements | Sign-out → landing page. Specific login error messages. |
+| In-app feedback button | Floating star-rating + type selector with Google Sheets webhook. |
 
 ## GitHub Issue Tracker
 
