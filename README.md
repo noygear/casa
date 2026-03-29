@@ -47,6 +47,7 @@ Each step triggers an audit log entry. Evidence photos are visible to all author
 - **Vendor scoring** — automated performance scores based on rejections, lateness, and volume
 - **Recurring PM templates** — scheduled preventative maintenance (HVAC filters, fire inspections, etc.)
 - **Smart alerts** — flags repeated issues in the same location within 90 days
+- **AI invoice parsing** — vendors upload invoice images; Claude Vision extracts structured line items for review and confirmation
 
 ---
 
@@ -62,6 +63,7 @@ Each step triggers an audit log entry. Evidence photos are visible to all author
 | Charts | Recharts |
 | Icons | Lucide React |
 | Routing | React Router v6 |
+| AI/Vision | Anthropic Claude SDK |
 | Validation | Zod |
 | Deployment | Vercel (frontend), Fly.io (backend) |
 

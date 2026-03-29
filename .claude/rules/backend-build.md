@@ -38,6 +38,7 @@ GET    /api/recurring-templates       # List active templates
 2. **Replace mock auth** in `src/contexts/AuthContext.tsx` with real JWT flow.
 3. **Add photo upload** to Cloudinary (with base64 fallback for dev).
 4. **Add email notifications** via SendGrid or Resend for ticket events and SLA breaches.
+5. **AI invoice parsing** (Built): Vendors upload invoice images via `/api/work-orders/:id/invoice/parse`. Backend uses Anthropic Claude Vision to extract structured line items. Vendor reviews and confirms via `/api/work-orders/:id/invoice/confirm` to persist `InvoiceLineItem` records.
 
 ## Architecture Rules
 
