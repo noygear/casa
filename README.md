@@ -47,6 +47,7 @@ Each step triggers an audit log entry. Evidence photos are visible to all author
 - **Vendor scoring** — automated performance scores based on rejections, lateness, and volume
 - **Recurring PM templates** — scheduled preventative maintenance (HVAC filters, fire inspections, etc.)
 - **Smart alerts** — flags repeated issues in the same location within 90 days
+- **In-app feedback** — floating feedback button with star rating, type selector, and Google Sheets webhook
 
 ---
 

@@ -6,6 +6,7 @@ import {
   LogOut, ChevronLeft, Menu
 } from 'lucide-react';
 import { useState } from 'react';
+import { FeedbackButton } from './FeedbackButton';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -118,6 +119,8 @@ export function AppShell({ children }: AppShellProps) {
           {children}
         </div>
       </main>
+
+      <FeedbackButton />
     </div>
   );
 }
