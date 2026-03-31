@@ -1,6 +1,52 @@
 import prisma from '../prisma.js';
 import { computeSLAStatus } from '../../../src/domain/slaTracker.js';
 
+// ── SLA Configuration CRUD ──────────────────────────────────
+
+export async function listSLAConfigs(propertyId?: string) {
+  return prisma.sLAConfiguration.findMany({
+    where: propertyId ? { propertyId } : undefined,
+    include: { property: { select: { id: true, name: true } } },
+    orderBy: [{ propertyId: 'asc' }, { category: 'asc' }, { severity: 'asc' }],
+  });
+}
+
+export async function upsertSLAConfig(data: {
+  propertyId: string;
+  category: string;
+  severity: string;
+  responseTimeMin: number;
+  resolveTimeMin: number;
+}) {
+  return prisma.sLAConfiguration.upsert({
+    where: {
+      propertyId_category_severity: {
+        propertyId: data.propertyId,
+        category: data.category as any,
+        severity: data.severity as any,
+      },
+    },
+    create: {
+      propertyId: data.propertyId,
+      category: data.category as any,
+      severity: data.severity as any,
+      responseTimeMin: data.responseTimeMin,
+      resolveTimeMin: data.resolveTimeMin,
+    },
+    update: {
+      responseTimeMin: data.responseTimeMin,
+      resolveTimeMin: data.resolveTimeMin,
+    },
+    include: { property: { select: { id: true, name: true } } },
+  });
+}
+
+export async function deleteSLAConfig(id: string) {
+  return prisma.sLAConfiguration.delete({ where: { id } });
+}
+
+// ── SLA Compliance ──────────────────────────────────────────
+
 export async function getSLACompliance() {
   // Get all non-terminal work orders with SLA config
   const workOrders = await prisma.workOrder.findMany({
@@ -27,6 +73,7 @@ export async function getSLACompliance() {
       title: wo.title,
       status: wo.status,
       severity: wo.severity,
+      createdAt: wo.createdAt.toISOString(),
       property: wo.property,
       sla: slaStatus,
     };
