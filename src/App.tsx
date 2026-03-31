@@ -4,6 +4,7 @@ import { AppShell } from './components/AppShell';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { TenantDashboardPage } from './pages/TenantDashboardPage';
+import { AssetManagerDashboardPage } from './pages/AssetManagerDashboardPage';
 import { WorkOrdersPage } from './pages/WorkOrdersPage';
 import { VendorsPage } from './pages/VendorsPage';
 import { PropertiesPage } from './pages/PropertiesPage';
@@ -11,13 +12,16 @@ import { LandingPage } from './pages/LandingPage';
 import { SLACompliancePage } from './pages/SLACompliancePage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return null;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <AppShell>{children}</AppShell>;
 }
 
 export default function App() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) return null;
 
   return (
     <Routes>
@@ -28,7 +32,9 @@ export default function App() {
       />
       <Route path="/dashboard" element={
         <ProtectedRoute>
-          {user?.role === 'tenant' ? <TenantDashboardPage /> : <DashboardPage />}
+          {user?.role === 'tenant' ? <TenantDashboardPage /> :
+           user?.role === 'asset_manager' ? <AssetManagerDashboardPage /> :
+           <DashboardPage />}
         </ProtectedRoute>
       } />
       <Route path="/work-orders" element={<ProtectedRoute><WorkOrdersPage /></ProtectedRoute>} />

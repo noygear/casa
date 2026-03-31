@@ -5,7 +5,7 @@
 // elapsed time against configured targets.
 // ============================================================
 
-import { SLAStatus } from '../types';
+import { SLAStatus } from '../types/index.js';
 
 export interface SLAInput {
   createdAt: string;          // ISO timestamp

@@ -5,9 +5,11 @@ import { SLABadge } from './SLABadge';
 import { computeSLAStatus } from '../domain/slaTracker';
 import { getAvailableTransitions } from '../domain/workOrderStateMachine';
 import { useAuth } from '../contexts/AuthContext';
-import { MOCK_VENDORS, MOCK_USERS } from '../data/mockData';
-import { X, MapPin, Building2, User, Clock, Camera, ChevronRight, Shield, History, DollarSign, ImagePlus, FileText, UserCheck } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useVendors } from '../hooks/useVendors';
+import { useUpdateWorkOrder, useUploadPhoto } from '../hooks/useWorkOrders';
+import { useGPSCapture } from '../hooks/useGPSCapture';
+import { X, MapPin, Building2, User, Clock, Camera, ChevronRight, Shield, History, DollarSign, ImagePlus, FileText, UserCheck, Navigation, Loader2, AlertTriangle } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 
 interface WorkOrderDetailModalProps {
   workOrder: WorkOrder;
@@ -16,6 +18,12 @@ interface WorkOrderDetailModalProps {
 
 export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModalProps) {
   const { user } = useAuth();
+  const { data: vendorsData } = useVendors();
+  const updateWorkOrder = useUpdateWorkOrder();
+  const uploadPhoto = useUploadPhoto();
+
+  const vendors = vendorsData?.items || [];
+
   const sla = workOrder.slaResponseMin && workOrder.slaResolveMin
     ? computeSLAStatus({
         createdAt: workOrder.createdAt,
@@ -32,7 +40,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
 
   const [showCompletionForm, setShowCompletionForm] = useState(false);
   const [showAssignForm, setShowAssignForm] = useState(false);
-  const [assignVendorId, setAssignVendorId] = useState(MOCK_VENDORS[0]?.id ?? '');
+  const [assignVendorId, setAssignVendorId] = useState(vendors[0]?.id ?? '');
   const [targetStatus, setTargetStatus] = useState<WorkOrder['status'] | null>(null);
   const [memo, setMemo] = useState('');
   const [cost, setCost] = useState('');
@@ -42,6 +50,40 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
   const [afterPhotoPreview, setAfterPhotoPreview] = useState<string | null>(null);
   const beforeFileInputRef = useRef<HTMLInputElement>(null);
   const afterFileInputRef = useRef<HTMLInputElement>(null);
+  const [transitionError, setTransitionError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // GPS & start photo state
+  const [showStartPhotoForm, setShowStartPhotoForm] = useState(false);
+  const [startPhotoFile, setStartPhotoFile] = useState<File | null>(null);
+  const [startPhotoPreview, setStartPhotoPreview] = useState<string | null>(null);
+  const startFileInputRef = useRef<HTMLInputElement>(null);
+  const gps = useGPSCapture();
+  const completionGps = useGPSCapture();
+
+  // Set default vendor when vendors load
+  useEffect(() => {
+    if (vendors.length > 0 && !assignVendorId) {
+      setAssignVendorId(vendors[0].id);
+    }
+  }, [vendors, assignVendorId]);
+
+  const handleStartFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setStartPhotoFile(file);
+      const reader = new FileReader();
+      reader.onload = () => setStartPhotoPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  useEffect(() => {
+    if (showStartPhotoForm) gps.requestPosition();
+  }, [showStartPhotoForm]);
+  useEffect(() => {
+    if (showCompletionForm) completionGps.requestPosition();
+  }, [showCompletionForm]);
 
   const handleBeforeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -63,84 +105,130 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
     }
   };
 
-  const handleAssignSubmit = () => {
-    const vendor = MOCK_VENDORS.find(v => v.id === assignVendorId);
-    const vendorUser = MOCK_USERS.find(u => u.vendorId === assignVendorId);
-    if (!workOrder.auditLog) workOrder.auditLog = [];
-    workOrder.auditLog.push({
-      id: `al-${Date.now()}`,
-      workOrderId: workOrder.id,
-      userId: user!.id,
-      fromStatus: workOrder.status,
-      toStatus: 'assigned',
-      createdAt: new Date().toISOString(),
-    });
-    workOrder.status = 'assigned';
-    workOrder.vendorId = assignVendorId;
-    workOrder.vendor = vendor;
-    if (vendorUser) {
-      workOrder.assignedToId = vendorUser.id;
-      workOrder.assignedTo = vendorUser;
+  const handleAssignSubmit = async () => {
+    setTransitionError(null);
+    setIsSubmitting(true);
+    try {
+      await updateWorkOrder.mutateAsync({
+        id: workOrder.id,
+        status: 'assigned',
+        vendorId: assignVendorId,
+      });
+      onClose();
+    } catch (err: any) {
+      setTransitionError(err.response?.data?.message || err.message || 'Assignment failed');
+    } finally {
+      setIsSubmitting(false);
     }
-    workOrder.respondedAt = new Date().toISOString();
-    onClose();
   };
 
-  // Simplified mutation since we are using mock data
-  const handleVendorSubmit = () => {
-    // In a real app this would call an API/mutation
-    if (!workOrder.auditLog) workOrder.auditLog = [];
-    workOrder.auditLog.push({
-      id: `al-${Date.now()}`,
-      workOrderId: workOrder.id,
-      userId: user!.id,
-      fromStatus: workOrder.status,
-      toStatus: targetStatus as WorkOrder['status'],
-      createdAt: new Date().toISOString(),
-    });
-    workOrder.status = targetStatus as WorkOrder['status'];
-    if (workOrder.status === 'closed') workOrder.resolvedAt = new Date().toISOString();
-    if (cost) workOrder.cost = parseFloat(cost);
-    
-    const newPhotos = [];
-    if (beforePhotoPreview) {
-      newPhotos.push({
-        id: `ph-vendor-before-${Date.now()}`,
-        workOrderId: workOrder.id,
-        url: beforePhotoPreview,
-        type: 'before' as const,
-        caption: 'Before Service',
-        uploadedAt: new Date().toISOString()
-      });
-    }
-    if (afterPhotoPreview) {
-      newPhotos.push({
-        id: `ph-vendor-after-${Date.now()}`,
-        workOrderId: workOrder.id,
-        url: afterPhotoPreview,
-        type: 'after' as const,
-        caption: memo || 'After Service',
-        uploadedAt: new Date().toISOString()
-      });
-    }
-
-    if (newPhotos.length > 0) {
-      if (!workOrder.photos) {
-        workOrder.photos = newPhotos;
-      } else {
-        workOrder.photos.push(...newPhotos);
+  const handleVendorSubmit = async () => {
+    setTransitionError(null);
+    setIsSubmitting(true);
+    try {
+      // Upload photos first
+      if (beforePhotoPreview) {
+        await uploadPhoto.mutateAsync({
+          workOrderId: workOrder.id,
+          url: beforePhotoPreview,
+          type: 'before',
+          caption: 'Before Service',
+          ...(completionGps.position ? {
+            gpsLatitude: completionGps.position.latitude,
+            gpsLongitude: completionGps.position.longitude,
+            gpsAccuracy: completionGps.position.accuracy,
+          } : {}),
+        });
       }
+      if (afterPhotoPreview) {
+        await uploadPhoto.mutateAsync({
+          workOrderId: workOrder.id,
+          url: afterPhotoPreview,
+          type: 'after',
+          caption: memo || 'After Service',
+          ...(completionGps.position ? {
+            gpsLatitude: completionGps.position.latitude,
+            gpsLongitude: completionGps.position.longitude,
+            gpsAccuracy: completionGps.position.accuracy,
+          } : {}),
+        });
+      }
+
+      // Then transition status
+      await updateWorkOrder.mutateAsync({
+        id: workOrder.id,
+        status: targetStatus as WorkOrder['status'],
+        cost: cost ? parseFloat(cost) : undefined,
+        comment: memo || undefined,
+      });
+      onClose();
+    } catch (err: any) {
+      setTransitionError(err.response?.data?.message || err.message || 'Transition failed');
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    onClose();
+  };
+
+  const handleStartPhotoSubmit = async () => {
+    setTransitionError(null);
+    setIsSubmitting(true);
+    try {
+      // Upload start photo
+      if (startPhotoPreview) {
+        await uploadPhoto.mutateAsync({
+          workOrderId: workOrder.id,
+          url: startPhotoPreview,
+          type: 'start',
+          caption: 'On-site arrival',
+          ...(gps.position ? {
+            gpsLatitude: gps.position.latitude,
+            gpsLongitude: gps.position.longitude,
+            gpsAccuracy: gps.position.accuracy,
+          } : {}),
+        });
+      }
+
+      // Transition to in_progress
+      await updateWorkOrder.mutateAsync({
+        id: workOrder.id,
+        status: 'in_progress',
+      });
+      onClose();
+    } catch (err: any) {
+      setTransitionError(err.response?.data?.message || err.message || 'Transition failed');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleQuickTransition = async (status: WorkOrder['status']) => {
+    setTransitionError(null);
+    setIsSubmitting(true);
+    try {
+      await updateWorkOrder.mutateAsync({
+        id: workOrder.id,
+        status,
+      });
+      onClose();
+    } catch (err: any) {
+      setTransitionError(err.response?.data?.message || err.message || 'Transition failed');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const gpsStatusLabel = (gpsState: typeof gps) => {
+    if (gpsState.isLoading) return { text: 'Acquiring GPS...', color: 'text-amber-400', icon: Loader2 };
+    if (gpsState.position) return { text: `GPS locked (±${Math.round(gpsState.position.accuracy)}m)`, color: 'text-emerald-400', icon: Navigation };
+    if (gpsState.error === 'PERMISSION_DENIED') return { text: 'Location permission denied. Enable in browser settings.', color: 'text-rose-400', icon: AlertTriangle };
+    if (gpsState.error) return { text: 'GPS unavailable — photo will save without location.', color: 'text-amber-400', icon: AlertTriangle };
+    return { text: 'GPS not started', color: 'text-gray-500', icon: Navigation };
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal */}
       <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto glass-card p-0 animate-scale-in">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between p-6 pb-4 border-b border-white/5 bg-cre-950/80 backdrop-blur-xl rounded-t-2xl">
@@ -167,6 +255,11 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
 
         {/* Body */}
         <div className="p-6 space-y-6">
+          {transitionError && (
+            <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-sm text-rose-400">
+              {transitionError}
+            </div>
+          )}
           {/* Description */}
           <div>
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Description</h4>
@@ -263,7 +356,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                 </div>
               </div>
               <p className="mt-3 text-[11px] text-gray-500 leading-relaxed">
-                This inspection work order requires both "before" and "after" photos to transition to Needs Review. 
+                This inspection work order requires both "before" and "after" photos to transition to Needs Review.
                 Property Managers must verify correction quality before closing.
               </p>
             </div>
@@ -281,7 +374,15 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                     <img src={photo.url} alt={photo.caption || 'Evidence'} className="w-full h-32 object-cover transition-transform duration-500 group-hover:scale-105" />
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-8">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-white capitalize">{photo.type}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-medium text-white capitalize">{photo.type}</span>
+                          {photo.gps && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] text-emerald-400" title={`${photo.gps.latitude.toFixed(4)}, ${photo.gps.longitude.toFixed(4)} (±${Math.round(photo.gps.accuracy)}m)`}>
+                              <Navigation size={8} />
+                              GPS
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] text-gray-400">{new Date(photo.uploadedAt).toLocaleDateString()}</span>
                       </div>
                     </div>
@@ -341,7 +442,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                       onChange={e => setAssignVendorId(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-sm text-white focus:outline-none focus:border-cre-500/50 appearance-none cursor-pointer"
                     >
-                      {MOCK_VENDORS.map(v => (
+                      {vendors.map(v => (
                         <option key={v.id} value={v.id} className="bg-cre-950 text-white">{v.companyName}</option>
                       ))}
                     </select>
@@ -349,10 +450,10 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={handleAssignSubmit}
-                      disabled={!assignVendorId}
+                      disabled={!assignVendorId || isSubmitting}
                       className="flex-1 px-4 py-2.5 rounded-xl bg-cre-500 text-white text-sm font-semibold hover:bg-cre-600 transition-all disabled:opacity-50"
                     >
-                      Confirm Assignment
+                      {isSubmitting ? 'Assigning...' : 'Confirm Assignment'}
                     </button>
                     <button
                       onClick={() => setShowAssignForm(false)}
@@ -366,18 +467,102 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
             </div>
           )}
 
-          {/* Vendor Completion Form overlay/section */}
+          {/* Start Photo Form (assigned → in_progress) */}
+          {showStartPhotoForm && (
+            <div className="pt-4 border-t border-white/5 animate-slide-up">
+              <div className="glass-card border-cre-500/20 p-5 bg-cre-500/5">
+                <h4 className="text-sm font-semibold text-cre-400 mb-4 flex items-center gap-2">
+                  <Camera size={16} /> On-Site Arrival Photo
+                </h4>
+                <p className="text-xs text-gray-400 mb-4">
+                  Take a GPS-tagged photo to prove you are on-site before starting work.
+                </p>
+
+                <div className="space-y-4">
+                  {(() => {
+                    const status = gpsStatusLabel(gps);
+                    const Icon = status.icon;
+                    return (
+                      <div className={`flex items-center gap-2 text-xs ${status.color}`}>
+                        <Icon size={14} className={gps.isLoading ? 'animate-spin' : ''} />
+                        <span>{status.text}</span>
+                        {(gps.error === 'TIMEOUT' || gps.error === 'POSITION_UNAVAILABLE') && (
+                          <button onClick={gps.requestPosition} className="ml-2 px-2 py-0.5 rounded bg-white/5 text-gray-300 hover:bg-white/10 text-[10px] font-medium">
+                            Retry GPS
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  <div>
+                    <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Arrival Photo</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      ref={startFileInputRef}
+                      onChange={handleStartFileChange}
+                    />
+                    <button
+                      onClick={() => startFileInputRef.current?.click()}
+                      className={`w-full h-[60px] flex items-center justify-center gap-2 px-3 rounded-lg border text-sm transition-all overflow-hidden relative ${startPhotoPreview ? 'border-cre-500/30' : 'bg-white/5 border-white/10 border-dashed text-gray-400 hover:text-white hover:bg-white/10'}`}
+                    >
+                      {startPhotoPreview ? (
+                        <>
+                          <div className="absolute inset-0">
+                            <img src={startPhotoPreview} alt="Start photo preview" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
+                          </div>
+                          <span className="relative z-10 text-cre-400 font-medium">Arrival Photo Attached</span>
+                        </>
+                      ) : (
+                        <>
+                          <Camera size={20} />
+                          <span>Take Arrival Photo</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {!gps.position && !gps.isLoading && !gps.error && (
+                    <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-400">
+                      GPS is acquiring your location. The photo will include location data when available.
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={handleStartPhotoSubmit}
+                      disabled={!startPhotoFile || isSubmitting}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-cre-500 text-white text-sm font-semibold hover:bg-cre-600 transition-all disabled:opacity-50"
+                    >
+                      {isSubmitting ? 'Starting...' : 'Start Work'}
+                    </button>
+                    <button
+                      onClick={() => { setShowStartPhotoForm(false); gps.reset(); }}
+                      className="px-4 py-2.5 rounded-xl bg-white/5 text-gray-300 text-sm font-medium hover:bg-white/10 transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Vendor Completion Form */}
           {showCompletionForm && (
             <div className="pt-4 border-t border-white/5 animate-slide-up">
               <div className="glass-card border-cre-500/20 p-5 bg-cre-500/5">
                 <h4 className="text-sm font-semibold text-cre-400 mb-4 flex items-center gap-2">
                   <FileText size={16} /> Complete Service Record
                 </h4>
-                
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Service Memo</label>
-                    <textarea 
+                    <textarea
                       value={memo}
                       onChange={(e) => setMemo(e.target.value)}
                       placeholder="Describe the work performed..."
@@ -390,8 +575,8 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                       <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Total Cost</label>
                       <div className="relative">
                         <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={cost}
                           onChange={(e) => setCost(e.target.value)}
                           placeholder="0.00"
@@ -402,21 +587,15 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Before Photo</label>
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
-                          ref={beforeFileInputRef}
-                          onChange={handleBeforeFileChange}
-                        />
-                        <button 
+                        <input type="file" accept="image/*" className="hidden" ref={beforeFileInputRef} onChange={handleBeforeFileChange} />
+                        <button
                           onClick={() => beforeFileInputRef.current?.click()}
                           className={`w-full h-[38px] flex items-center justify-center gap-2 px-3 rounded-lg border text-sm transition-all overflow-hidden relative ${beforePhotoPreview ? 'border-cre-500/30' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
                         >
                           {beforePhotoPreview ? (
                             <>
                               <div className="absolute inset-0">
-                                 <img src={beforePhotoPreview} alt="Preview Before" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
+                                <img src={beforePhotoPreview} alt="Preview Before" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
                               </div>
                               <span className="relative z-10 text-cre-400 font-medium">Before Attached</span>
                             </>
@@ -430,21 +609,15 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                       </div>
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">After Photo</label>
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
-                          ref={afterFileInputRef}
-                          onChange={handleAfterFileChange}
-                        />
-                        <button 
+                        <input type="file" accept="image/*" className="hidden" ref={afterFileInputRef} onChange={handleAfterFileChange} />
+                        <button
                           onClick={() => afterFileInputRef.current?.click()}
                           className={`w-full h-[38px] flex items-center justify-center gap-2 px-3 rounded-lg border text-sm transition-all overflow-hidden relative ${afterPhotoPreview ? 'border-emerald-500/30' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
                         >
                           {afterPhotoPreview ? (
                             <>
                               <div className="absolute inset-0">
-                                 <img src={afterPhotoPreview} alt="Preview After" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
+                                <img src={afterPhotoPreview} alt="Preview After" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
                               </div>
                               <span className="relative z-10 text-emerald-400 font-medium">After Attached</span>
                             </>
@@ -459,13 +632,29 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                     </div>
                   </div>
 
+                  {(() => {
+                    const status = gpsStatusLabel(completionGps);
+                    const Icon = status.icon;
+                    return (
+                      <div className={`flex items-center gap-2 text-xs ${status.color}`}>
+                        <Icon size={14} className={completionGps.isLoading ? 'animate-spin' : ''} />
+                        <span>{status.text}</span>
+                        {(completionGps.error === 'TIMEOUT' || completionGps.error === 'POSITION_UNAVAILABLE') && (
+                          <button onClick={completionGps.requestPosition} className="ml-2 px-2 py-0.5 rounded bg-white/5 text-gray-300 hover:bg-white/10 text-[10px] font-medium">
+                            Retry GPS
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={handleVendorSubmit}
-                      disabled={!memo || (!beforePhotoFile || !afterPhotoFile) && targetStatus !== 'needs_review'}
+                      disabled={!memo || (!beforePhotoFile && !afterPhotoFile) || isSubmitting || !!(workOrder.isInspection && targetStatus === 'needs_review' && (!beforePhotoFile || !afterPhotoFile))}
                       className="flex-1 px-4 py-2.5 rounded-xl bg-cre-500 text-white text-sm font-semibold hover:bg-cre-600 transition-all disabled:opacity-50"
                     >
-                      Submit Record & {STATUS_LABELS[targetStatus as keyof typeof STATUS_LABELS]}
+                      {isSubmitting ? 'Submitting...' : `Submit Record & ${STATUS_LABELS[targetStatus as keyof typeof STATUS_LABELS]}`}
                     </button>
                     <button
                       onClick={() => { setShowCompletionForm(false); setTargetStatus(null); }}
@@ -480,35 +669,27 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
           )}
 
           {/* Action Buttons */}
-          {availableTransitions.length > 0 && !showCompletionForm && !showAssignForm && (
+          {availableTransitions.length > 0 && !showCompletionForm && !showAssignForm && !showStartPhotoForm && (
             <div className="pt-4 border-t border-white/5">
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Actions</h4>
               <div className="flex flex-wrap gap-2">
                 {availableTransitions.map(status => (
                   <button
                     key={status}
+                    disabled={isSubmitting}
                     onClick={() => {
-                      if (user?.role === 'vendor' && (status === 'closed' || status === 'needs_review')) {
+                      if (status === 'in_progress' && workOrder.status === 'assigned') {
+                        setShowStartPhotoForm(true);
+                      } else if ((status === 'closed' || status === 'needs_review') && workOrder.status === 'in_progress') {
                         setTargetStatus(status);
                         setShowCompletionForm(true);
                       } else if (status === 'assigned') {
                         setShowAssignForm(true);
                       } else {
-                        if (!workOrder.auditLog) workOrder.auditLog = [];
-                        workOrder.auditLog.push({
-                          id: `al-${Date.now()}`,
-                          workOrderId: workOrder.id,
-                          userId: user!.id,
-                          fromStatus: workOrder.status,
-                          toStatus: status,
-                          createdAt: new Date().toISOString(),
-                        });
-                        if (status === 'closed') workOrder.resolvedAt = new Date().toISOString();
-                        workOrder.status = status;
-                        onClose();
+                        handleQuickTransition(status);
                       }
                     }}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 disabled:opacity-50 ${
                       status === 'closed'
                         ? 'bg-emerald-500 text-white hover:bg-emerald-600'
                         : status === 'in_progress' && workOrder.status === 'needs_review'
@@ -519,7 +700,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                   >
                     {status === 'in_progress' && workOrder.status === 'needs_review'
                       ? '↩ Reject & Reopen'
-                      : status === 'closed' 
+                      : status === 'closed'
                       ? 'Close Now'
                       : `→ ${STATUS_LABELS[status]}`}
                   </button>

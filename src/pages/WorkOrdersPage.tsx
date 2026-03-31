@@ -1,36 +1,97 @@
-import { useState, useMemo } from 'react';
-import { MOCK_WORK_ORDERS, MOCK_RECURRING_TEMPLATES } from '../data/mockData';
+import { useState, useCallback } from 'react';
+import { useWorkOrders, useUpdateWorkOrder } from '../hooks/useWorkOrders';
+import { useRecurringTemplates } from '../hooks/useRecurringTemplates';
+import { usePreferredVendorMappings } from '../hooks/usePreferredVendorMappings';
+import { useVendors } from '../hooks/useVendors';
 import { WorkOrderCard } from '../components/WorkOrderCard';
 import { WorkOrderDetailModal } from '../components/WorkOrderDetailModal';
 import { NewWorkOrderModal } from '../components/NewWorkOrderModal';
-import type { WorkOrder, WorkOrderStatus, Severity, WorkOrderCategory } from '../types';
-import { STATUS_LABELS, CATEGORY_LABELS } from '../types';
-import { Search, Filter, SlidersHorizontal, Plus, X, RepeatIcon as Repeat, Building2, Wrench } from 'lucide-react';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorBanner } from '../components/ErrorBanner';
+import type { WorkOrder, Severity, WorkOrderCategory } from '../types';
+import { CATEGORY_LABELS } from '../types';
+import { Search, Filter, SlidersHorizontal, Plus, X, RepeatIcon as Repeat, Building2, Wrench, ToggleLeft, ToggleRight, Info, Zap } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { findPreferredVendor } from '../domain/autoAssigner';
+
+type TabType = 'unassigned' | 'active' | 'closed' | 'recurring';
+
+const SEVERITY_SORT_ORDER: Record<Severity, number> = {
+  immediate: 0,
+  needs_fix_today: 1,
+  minor: 2,
+};
 
 export function WorkOrdersPage() {
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialStatus = (searchParams.get('status') as WorkOrderStatus) || 'all';
+  const [searchParams] = useSearchParams();
 
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(MOCK_WORK_ORDERS);
+  const { data: workOrdersData, isLoading, isError, error, refetch } = useWorkOrders();
+  const { data: mappingsData } = usePreferredVendorMappings();
+  const { data: vendorsData } = useVendors();
+  const { data: templatesData } = useRecurringTemplates();
+  const updateWorkOrder = useUpdateWorkOrder();
+
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
   const [showNewWO, setShowNewWO] = useState(false);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<WorkOrderStatus | 'all'>(initialStatus);
   const [severityFilter, setSeverityFilter] = useState<Severity | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState<WorkOrderCategory | 'all'>('all');
   const [showFilters, setShowFilters] = useState(false);
-  const [activeTab, setActiveTab] = useState<'standard' | 'recurring'>('standard');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam === 'closed' || statusParam === 'skipped') return 'closed';
+    if (statusParam === 'assigned' || statusParam === 'in_progress' || statusParam === 'needs_review') return 'active';
+    return 'unassigned';
+  });
+  const [autoAssign, setAutoAssign] = useState(() => {
+    return localStorage.getItem('casa_auto_assign') === 'true';
+  });
+  const [showAutoAssignTooltip, setShowAutoAssignTooltip] = useState(false);
 
-  const filtered = useMemo(() => {
-    // If tenant, only show their own created orders
-    const baseOrders = user?.role === 'tenant' 
-      ? workOrders.filter(wo => wo.createdById === user.id)
-      : [...workOrders];
+  const toggleAutoAssign = useCallback(() => {
+    setAutoAssign(prev => {
+      const next = !prev;
+      localStorage.setItem('casa_auto_assign', String(next));
+      return next;
+    });
+  }, []);
 
-    let result = baseOrders;
+  if (isLoading) return <LoadingSpinner />;
+  if (isError) return <ErrorBanner message={error?.message || 'Failed to load work orders'} onRetry={refetch} />;
+
+  const workOrders = workOrdersData?.items || [];
+  const mappings = mappingsData || [];
+  const vendors = vendorsData?.items || [];
+  const recurringTemplates = templatesData || [];
+
+  // Auto-assign logic for new work orders
+  const handleNewWOCreated = () => {
+    if (autoAssign) {
+      // Find newly created open orders without a vendor and try to auto-assign
+      const openUnassigned = workOrders.filter(wo => wo.status === 'open' && !wo.vendorId);
+      for (const wo of openUnassigned) {
+        const vendor = findPreferredVendor(wo.propertyId, wo.category, mappings, vendors);
+        if (vendor) {
+          updateWorkOrder.mutate({
+            id: wo.id,
+            status: 'assigned',
+            vendorId: vendor.id,
+            comment: 'Auto-assigned to preferred vendor',
+          });
+        }
+      }
+    }
+    refetch();
+  };
+
+  const baseOrders = user?.role === 'tenant'
+    ? workOrders.filter(wo => wo.createdById === user.id)
+    : workOrders;
+
+  const applySearchAndFilters = (orders: WorkOrder[]) => {
+    let result = orders;
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(wo =>
@@ -40,41 +101,57 @@ export function WorkOrdersPage() {
         wo.space?.name.toLowerCase().includes(q)
       );
     }
-    if (statusFilter !== 'all') {
-      result = result.filter(wo => wo.status === statusFilter);
-    }
     if (severityFilter !== 'all') {
       result = result.filter(wo => wo.severity === severityFilter);
     }
     if (categoryFilter !== 'all') {
       result = result.filter(wo => wo.category === categoryFilter);
     }
-    return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [workOrders, search, statusFilter, severityFilter, categoryFilter, user?.id, user?.role]);
-
-  const activeFilters = [statusFilter, severityFilter, categoryFilter].filter(f => f !== 'all').length;
-
-  const updateStatusFilter = (val: WorkOrderStatus | 'all') => {
-    setStatusFilter(val);
-    if (val === 'all') {
-      searchParams.delete('status');
-    } else {
-      searchParams.set('status', val);
-    }
-    setSearchParams(searchParams);
+    return result;
   };
 
-  const recurringTemplates = useMemo(() => {
-    let result = MOCK_RECURRING_TEMPLATES;
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(rt => 
-        rt.name.toLowerCase().includes(q) || 
-        rt.description.toLowerCase().includes(q)
-      );
-    }
-    return result;
-  }, [search]);
+  const unassignedOrders = (() => {
+    const orders = baseOrders.filter(wo => wo.status === 'open' && !wo.vendorId);
+    return applySearchAndFilters(orders).sort((a, b) => {
+      const sevDiff = SEVERITY_SORT_ORDER[a.severity] - SEVERITY_SORT_ORDER[b.severity];
+      if (sevDiff !== 0) return sevDiff;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+  })();
+
+  const activeOrders = (() => {
+    const orders = baseOrders.filter(wo =>
+      wo.status === 'assigned' || wo.status === 'in_progress' || wo.status === 'needs_review'
+    );
+    return applySearchAndFilters(orders).sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  })();
+
+  const closedOrders = (() => {
+    const orders = baseOrders.filter(wo => wo.status === 'closed' || wo.status === 'skipped');
+    return applySearchAndFilters(orders).sort((a, b) => {
+      const aDate = a.resolvedAt || a.updatedAt;
+      const bDate = b.resolvedAt || b.updatedAt;
+      return new Date(bDate).getTime() - new Date(aDate).getTime();
+    });
+  })();
+
+  const currentOrders = activeTab === 'unassigned' ? unassignedOrders
+    : activeTab === 'active' ? activeOrders
+    : activeTab === 'closed' ? closedOrders
+    : [];
+
+  const activeFilters = [severityFilter, categoryFilter].filter(f => f !== 'all').length;
+
+  const filteredTemplates = (() => {
+    if (!search) return recurringTemplates;
+    const q = search.toLowerCase();
+    return recurringTemplates.filter(rt =>
+      rt.name.toLowerCase().includes(q) ||
+      rt.description.toLowerCase().includes(q)
+    );
+  })();
 
   return (
     <div className="space-y-6">
@@ -82,11 +159,15 @@ export function WorkOrdersPage() {
       <div className="flex items-center justify-between animate-slide-up">
         <div>
           <h1 className="text-2xl font-bold text-white">Work Orders</h1>
-          <p className="text-sm text-gray-400 mt-1">{filtered.length} work orders</p>
+          <p className="text-sm text-gray-400 mt-1">
+            {activeTab === 'recurring'
+              ? `${filteredTemplates.length} templates`
+              : `${currentOrders.length} work orders`}
+          </p>
         </div>
-        <button 
+        <button
           onClick={() => setShowNewWO(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cre-500 to-cre-600 text-white text-sm font-semibold hover:from-cre-400 hover:to-cre-500 transition-all shadow-lg shadow-cre-500/20" 
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cre-500 to-cre-600 text-white text-sm font-semibold hover:from-cre-400 hover:to-cre-500 transition-all shadow-lg shadow-cre-500/20"
           id="create-work-order-btn"
         >
           <Plus size={16} />
@@ -129,12 +210,42 @@ export function WorkOrdersPage() {
       {/* Tabs */}
       <div className="flex bg-black/40 p-1 rounded-xl w-fit animate-slide-up animate-slide-up-delay-1 border border-white/5">
         <button
-          onClick={() => setActiveTab('standard')}
+          onClick={() => setActiveTab('unassigned')}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
-            activeTab === 'standard' ? 'bg-cre-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
+            activeTab === 'unassigned' ? 'bg-cre-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          Active / Historical
+          Unassigned
+          {unassignedOrders.length > 0 && (
+            <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+              activeTab === 'unassigned' ? 'bg-white/20 text-white' : 'bg-amber-500/20 text-amber-400'
+            }`}>
+              {unassignedOrders.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('active')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+            activeTab === 'active' ? 'bg-cre-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          Active
+          {activeOrders.length > 0 && (
+            <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+              activeTab === 'active' ? 'bg-white/20 text-white' : 'bg-cre-500/20 text-cre-400'
+            }`}>
+              {activeOrders.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('closed')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === 'closed' ? 'bg-cre-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          Closed
         </button>
         <button
           onClick={() => setActiveTab('recurring')}
@@ -142,13 +253,45 @@ export function WorkOrdersPage() {
             activeTab === 'recurring' ? 'bg-cre-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <Repeat size={16} />
-          Recurring PMs
+          <Repeat size={14} />
+          Recurring
         </button>
       </div>
 
-      {/* Filter Panel (Only Standard) */}
-      {showFilters && (
+      {/* Auto-assign toggle (Unassigned tab only, PM/AM only) */}
+      {activeTab === 'unassigned' && (user?.role === 'property_manager' || user?.role === 'asset_manager') && (
+        <div className="flex items-center gap-3 animate-slide-up">
+          <button
+            onClick={toggleAutoAssign}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+              autoAssign
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+            }`}
+          >
+            {autoAssign ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+            {autoAssign ? <Zap size={12} /> : null}
+            Auto-assign to preferred vendors
+          </button>
+          <div className="relative">
+            <button
+              onMouseEnter={() => setShowAutoAssignTooltip(true)}
+              onMouseLeave={() => setShowAutoAssignTooltip(false)}
+              className="text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              <Info size={14} />
+            </button>
+            {showAutoAssignTooltip && (
+              <div className="absolute left-6 top-1/2 -translate-y-1/2 z-10 w-64 p-3 rounded-lg bg-cre-950 border border-white/10 text-xs text-gray-300 shadow-xl">
+                When enabled, new work orders are automatically assigned to your preferred vendor for that category and property. Configure preferred vendors in the Vendors tab.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Filter Panel */}
+      {showFilters && activeTab !== 'recurring' && (
         <div className="glass-card p-5 animate-scale-in">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -157,7 +300,7 @@ export function WorkOrdersPage() {
             </div>
             {activeFilters > 0 && (
               <button
-                onClick={() => { updateStatusFilter('all'); setSeverityFilter('all'); setCategoryFilter('all'); }}
+                onClick={() => { setSeverityFilter('all'); setCategoryFilter('all'); }}
                 className="flex items-center gap-1 text-xs text-cre-400 hover:text-cre-300"
               >
                 <X size={12} />
@@ -165,21 +308,7 @@ export function WorkOrdersPage() {
               </button>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Status</label>
-              <select
-                value={statusFilter}
-                onChange={e => updateStatusFilter(e.target.value as WorkOrderStatus | 'all')}
-                className="w-full px-3 py-2 rounded-lg bg-cre-950 border border-white/10 text-sm text-white focus:outline-none focus:border-cre-500/50 appearance-none cursor-pointer"
-                id="filter-status"
-              >
-                <option value="all" className="bg-cre-950 text-white">All Statuses</option>
-                {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value} className="bg-cre-950 text-white">{label}</option>
-                ))}
-              </select>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Severity</label>
               <select
@@ -215,7 +344,7 @@ export function WorkOrdersPage() {
       {/* Recurring Tab Grid */}
       {activeTab === 'recurring' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-up">
-          {recurringTemplates.map(rt => (
+          {filteredTemplates.map(rt => (
             <div key={rt.id} className="glass-card p-6 flex flex-col justify-between">
               <div>
                 <div className="flex items-start justify-between mb-3">
@@ -225,7 +354,7 @@ export function WorkOrdersPage() {
                   </span>
                 </div>
                 <p className="text-sm text-gray-400 line-clamp-2 mb-4">{rt.description}</p>
-                
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <Wrench size={14} className="text-gray-400" />
@@ -233,13 +362,13 @@ export function WorkOrdersPage() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <Building2 size={14} className="text-gray-400" />
-                    <span className="truncate">Meridian Tower</span>
+                    <span className="truncate">{rt.propertyId}</span>
                   </div>
                 </div>
               </div>
             </div>
           ))}
-          {recurringTemplates.length === 0 && (
+          {filteredTemplates.length === 0 && (
             <div className="col-span-full glass-card py-16 flex flex-col items-center justify-center">
               <Search size={40} className="text-gray-600 mb-3" />
               <p className="text-sm text-gray-400">No recurring templates found</p>
@@ -248,20 +377,27 @@ export function WorkOrdersPage() {
         </div>
       )}
 
-      {/* Work Order Grid (Only Standard) */}
-      {activeTab === 'standard' && (
+      {/* Work Order Grid */}
+      {activeTab !== 'recurring' && (
         <>
-          {filtered.length > 0 ? (
+          {currentOrders.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filtered.map(wo => (
+              {currentOrders.map(wo => (
                 <WorkOrderCard key={wo.id} workOrder={wo} onClick={setSelectedWO} />
               ))}
             </div>
           ) : (
             <div className="glass-card py-16 flex flex-col items-center justify-center">
               <Search size={40} className="text-gray-600 mb-3" />
-              <p className="text-sm text-gray-400">No work orders found</p>
-              <p className="text-xs text-gray-500 mt-1">Try adjusting your filters or search terms</p>
+              <p className="text-sm text-gray-400">
+                {activeTab === 'unassigned' ? 'No unassigned work orders' :
+                 activeTab === 'active' ? 'No active work orders' :
+                 'No closed work orders'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {activeTab === 'unassigned' ? 'All tickets have been assigned' :
+                 'Try adjusting your filters or search terms'}
+              </p>
             </div>
           )}
         </>
@@ -269,20 +405,19 @@ export function WorkOrdersPage() {
 
       {/* Detail Modal */}
       {selectedWO && (
-        <WorkOrderDetailModal 
-          workOrder={selectedWO} 
+        <WorkOrderDetailModal
+          workOrder={selectedWO}
           onClose={() => {
-            // Force re-render of the list so mutated photos/status show up
-            setWorkOrders([...workOrders]);
+            refetch();
             setSelectedWO(null);
-          }} 
+          }}
         />
       )}
 
       {showNewWO && (
         <NewWorkOrderModal
           onClose={() => setShowNewWO(false)}
-          onSubmit={() => setWorkOrders([...MOCK_WORK_ORDERS])}
+          onSubmit={handleNewWOCreated}
         />
       )}
     </div>

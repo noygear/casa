@@ -6,7 +6,7 @@
 // Mirrors the household scoring formula adapted for CRE.
 // ============================================================
 
-import { Severity, SEVERITY_MULTIPLIER } from '../types';
+import { Severity, SEVERITY_MULTIPLIER } from '../types/index.js';
 
 export interface ScoringInput {
   rejections: Array<{ severity: Severity }>;

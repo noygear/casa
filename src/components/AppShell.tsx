@@ -32,13 +32,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className="flex h-screen bg-obsidian overflow-hidden relative">
       {/* Animated Glowing Gradient Background */}
-      <div 
-        className="absolute inset-0 z-0 opacity-40 pointer-events-none mix-blend-screen animate-glow-pan"
-        style={{
-          background: 'linear-gradient(120deg, #1f2937 0%, #0f172a 25%, #1e3a8a 50%, #3b82f6 75%, #1e40af 100%)',
-          backgroundSize: '200% 200%'
-        }}
-      />
+      <div className="absolute inset-0 z-0 opacity-40 pointer-events-none mix-blend-screen animate-glow-pan glow-gradient-bg" />
       {/* Global CSS Noise applied over gradient */}
       <div className="absolute inset-0 z-0 bg-noise pointer-events-none opacity-50 mix-blend-overlay" />
 
@@ -51,7 +45,7 @@ export function AppShell({ children }: AppShellProps) {
           </div>
           {!collapsed && (
             <div className="animate-fade-in">
-              <h1 className="text-sm font-bold text-white leading-tight">Cardo</h1>
+              <h1 className="text-sm font-bold text-white leading-tight">Casa</h1>
               <p className="text-[10px] text-gray-500">Operations Platform</p>
             </div>
           )}

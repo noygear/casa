@@ -1,22 +1,23 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { MOCK_WORK_ORDERS } from '../data/mockData';
+import { useWorkOrders } from '../hooks/useWorkOrders';
 import { WorkOrderDetailModal } from '../components/WorkOrderDetailModal';
 import { NewWorkOrderModal } from '../components/NewWorkOrderModal';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { WorkOrder } from '../types';
 import { Plus, Check, FileText } from 'lucide-react';
 
 export function TenantDashboardPage() {
   const { user } = useAuth();
-  const [allOrders, setAllOrders] = useState<WorkOrder[]>(MOCK_WORK_ORDERS);
+  const { data, isLoading, isError, error, refetch } = useWorkOrders({ createdById: user?.id });
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
   const [showNewWO, setShowNewWO] = useState(false);
 
-  const refreshOrders = () => setAllOrders([...MOCK_WORK_ORDERS]);
+  if (isLoading) return <LoadingSpinner />;
+  if (isError) return <ErrorBanner message={error?.message || 'Failed to load requests'} onRetry={refetch} />;
 
-  // Tenant "My Requests"
-  const myWorkOrders = allOrders
-    .filter(wo => wo.createdById === user?.id)
+  const myWorkOrders = (data?.items || [])
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   // Map to Tenant Flow: Created (open) -> Assigned to Staff (assigned/in_progress) -> Completed (needs_review) -> Verified (closed)
@@ -113,10 +114,10 @@ export function TenantDashboardPage() {
       </div>
 
       {selectedWO && (
-        <WorkOrderDetailModal workOrder={selectedWO} onClose={() => { refreshOrders(); setSelectedWO(null); }} />
+        <WorkOrderDetailModal workOrder={selectedWO} onClose={() => { refetch(); setSelectedWO(null); }} />
       )}
       {showNewWO && (
-        <NewWorkOrderModal onClose={() => setShowNewWO(false)} onSubmit={refreshOrders} />
+        <NewWorkOrderModal onClose={() => setShowNewWO(false)} onSubmit={() => refetch()} />
       )}
     </div>
   );
