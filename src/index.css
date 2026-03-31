@@ -137,6 +137,15 @@ body {
 .animate-slide-up-delay-3 { animation-delay: 0.3s; }
 .animate-slide-up-delay-4 { animation-delay: 0.4s; }
 
+.animate-slide-right {
+  animation: slideRight 0.25s ease-out both;
+}
+
+@keyframes slideRight {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,

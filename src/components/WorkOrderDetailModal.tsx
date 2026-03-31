@@ -267,7 +267,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
           </div>
 
           {/* Location & Assignment */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="glass-surface p-4">
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Location</h4>
               <div className="space-y-2">
@@ -327,7 +327,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                   Inspection Correction Loop
                 </h4>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Before</p>
                   {workOrder.photos?.some(p => p.type === 'before') ? (
@@ -368,7 +368,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
                 Evidence Photos ({workOrder.photos.length})
               </h4>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {workOrder.photos.map(photo => (
                   <div key={photo.id} className="relative rounded-xl overflow-hidden border border-white/10 group">
                     <img src={photo.url} alt={photo.caption || 'Evidence'} className="w-full h-32 object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -584,7 +584,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Before Photo</label>
                         <input type="file" accept="image/*" className="hidden" ref={beforeFileInputRef} onChange={handleBeforeFileChange} />
