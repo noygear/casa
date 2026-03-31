@@ -43,6 +43,8 @@ export function WorkOrdersPage() {
     const statusParam = searchParams.get('status');
     if (statusParam === 'closed' || statusParam === 'skipped') return 'closed';
     if (statusParam === 'assigned' || statusParam === 'in_progress' || statusParam === 'needs_review') return 'active';
+    // Vendors default to "active" (they can't see unassigned)
+    if (user?.role === 'vendor') return 'active';
     return 'unassigned';
   });
   const [autoAssign, setAutoAssign] = useState(() => {
@@ -86,8 +88,12 @@ export function WorkOrdersPage() {
     refetch();
   };
 
+  const isVendor = user?.role === 'vendor';
+
   const baseOrders = user?.role === 'tenant'
     ? workOrders.filter(wo => wo.createdById === user.id)
+    : isVendor
+    ? workOrders.filter(wo => wo.assignedToId === user.id || wo.vendorId === user.vendorId)
     : workOrders;
 
   const applySearchAndFilters = (orders: WorkOrder[]) => {
@@ -165,14 +171,16 @@ export function WorkOrdersPage() {
               : `${currentOrders.length} work orders`}
           </p>
         </div>
-        <button
-          onClick={() => setShowNewWO(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cre-500 to-cre-600 text-white text-sm font-semibold hover:from-cre-400 hover:to-cre-500 transition-all shadow-lg shadow-cre-500/20"
-          id="create-work-order-btn"
-        >
-          <Plus size={16} />
-          New Work Order
-        </button>
+        {!isVendor && (
+          <button
+            onClick={() => setShowNewWO(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cre-500 to-cre-600 text-white text-sm font-semibold hover:from-cre-400 hover:to-cre-500 transition-all shadow-lg shadow-cre-500/20"
+            id="create-work-order-btn"
+          >
+            <Plus size={16} />
+            New Work Order
+          </button>
+        )}
       </div>
 
       {/* Search + Filters */}
@@ -209,21 +217,23 @@ export function WorkOrdersPage() {
 
       {/* Tabs */}
       <div className="flex bg-black/40 p-1 rounded-xl w-fit animate-slide-up animate-slide-up-delay-1 border border-white/5">
-        <button
-          onClick={() => setActiveTab('unassigned')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
-            activeTab === 'unassigned' ? 'bg-cre-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          Unassigned
-          {unassignedOrders.length > 0 && (
-            <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${
-              activeTab === 'unassigned' ? 'bg-white/20 text-white' : 'bg-amber-500/20 text-amber-400'
-            }`}>
-              {unassignedOrders.length}
-            </span>
-          )}
-        </button>
+        {!isVendor && (
+          <button
+            onClick={() => setActiveTab('unassigned')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+              activeTab === 'unassigned' ? 'bg-cre-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            Unassigned
+            {unassignedOrders.length > 0 && (
+              <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                activeTab === 'unassigned' ? 'bg-white/20 text-white' : 'bg-amber-500/20 text-amber-400'
+              }`}>
+                {unassignedOrders.length}
+              </span>
+            )}
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('active')}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
@@ -247,15 +257,17 @@ export function WorkOrdersPage() {
         >
           Closed
         </button>
-        <button
-          onClick={() => setActiveTab('recurring')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
-            activeTab === 'recurring' ? 'bg-cre-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <Repeat size={14} />
-          Recurring
-        </button>
+        {!isVendor && (
+          <button
+            onClick={() => setActiveTab('recurring')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+              activeTab === 'recurring' ? 'bg-cre-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Repeat size={14} />
+            Recurring
+          </button>
+        )}
       </div>
 
       {/* Auto-assign toggle (Unassigned tab only, PM/AM only) */}
