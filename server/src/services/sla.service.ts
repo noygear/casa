@@ -27,6 +27,7 @@ export async function getSLACompliance() {
       title: wo.title,
       status: wo.status,
       severity: wo.severity,
+      createdAt: wo.createdAt.toISOString(),
       property: wo.property,
       sla: slaStatus,
     };

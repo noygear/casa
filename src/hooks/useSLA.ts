@@ -6,12 +6,17 @@ interface SLAComplianceItem {
   title: string;
   status: string;
   severity: string;
+  createdAt: string;
   property: { id: string; name: string };
   sla: {
     responseOnTrack: boolean;
     resolveOnTrack: boolean;
-    responseMinutesLeft: number | null;
-    resolveMinutesLeft: number | null;
+    responseElapsedMin: number;
+    resolveElapsedMin: number;
+    responseTargetMin: number;
+    resolveTargetMin: number;
+    responsePercentUsed: number;
+    resolvePercentUsed: number;
   };
 }
 
