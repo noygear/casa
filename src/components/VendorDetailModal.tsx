@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { X, TrendingUp, Calendar, Building2, DollarSign } from 'lucide-react';
+import { X, TrendingUp, Calendar, Building2, DollarSign, FileCheck, Shield } from 'lucide-react';
 import { Vendor } from '../types';
 import { useWorkOrders } from '../hooks/useWorkOrders';
 import { useProperties } from '../hooks/useProperties';
@@ -96,7 +96,60 @@ export function VendorDetailModal({ vendor, onClose }: VendorDetailModalProps) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          
+
+          {/* Credentials */}
+          {(vendor.licenseNo || vendor.insuranceExp) && (
+            <div className="glass-card p-5 rounded-xl">
+              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <Shield size={16} className="text-cre-400" />
+                Credentials
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {vendor.licenseNo && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/5">
+                    <FileCheck size={18} className="text-cre-400 mt-0.5 shrink-0" />
+                    <div>
+                      <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">License Number</div>
+                      <div className="text-sm font-medium text-white">{vendor.licenseNo}</div>
+                    </div>
+                  </div>
+                )}
+                {vendor.insuranceExp && (() => {
+                  const exp = new Date(vendor.insuranceExp);
+                  const now = new Date();
+                  const daysUntil = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+                  let statusColor: string;
+                  let statusText: string;
+                  if (daysUntil < 0) {
+                    statusColor = 'text-red-400';
+                    statusText = `Expired ${Math.abs(daysUntil)} days ago`;
+                  } else if (daysUntil <= 30) {
+                    statusColor = 'text-red-400';
+                    statusText = `Expires in ${daysUntil} days`;
+                  } else if (daysUntil <= 60) {
+                    statusColor = 'text-amber-400';
+                    statusText = `Expires in ${daysUntil} days`;
+                  } else {
+                    statusColor = 'text-emerald-400';
+                    statusText = `Active — ${daysUntil} days remaining`;
+                  }
+
+                  return (
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/5">
+                      <Shield size={18} className={`${statusColor} mt-0.5 shrink-0`} />
+                      <div>
+                        <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Insurance Expiry</div>
+                        <div className="text-sm font-medium text-white">{format(exp, 'MMM dd, yyyy')}</div>
+                        <div className={`text-xs font-medium mt-0.5 ${statusColor}`}>{statusText}</div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
           {/* Controls & Summary */}
           <div className="flex flex-col lg:flex-row gap-6 justify-between">
             <div className="flex items-center gap-4">
