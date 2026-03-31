@@ -8,7 +8,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useVendors } from '../hooks/useVendors';
 import { useUpdateWorkOrder, useUploadPhoto } from '../hooks/useWorkOrders';
 import { useGPSCapture } from '../hooks/useGPSCapture';
-import { X, MapPin, Building2, User, Clock, Camera, ChevronRight, Shield, History, DollarSign, ImagePlus, FileText, UserCheck, Navigation, Loader2, AlertTriangle } from 'lucide-react';
+import { useParseInvoice, useConfirmInvoice } from '../hooks/useInvoice';
+import type { ExtractedLineItem } from '../domain/invoiceExtractor';
+import { X, MapPin, Building2, User, Clock, Camera, ChevronRight, Shield, History, DollarSign, ImagePlus, FileText, UserCheck, Navigation, Loader2, AlertTriangle, Receipt, Trash2, Plus, Check } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface WorkOrderDetailModalProps {
@@ -60,6 +62,14 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
   const startFileInputRef = useRef<HTMLInputElement>(null);
   const gps = useGPSCapture();
   const completionGps = useGPSCapture();
+
+  // Invoice state
+  const parseInvoice = useParseInvoice();
+  const confirmInvoice = useConfirmInvoice();
+  const [invoiceLineItems, setInvoiceLineItems] = useState<ExtractedLineItem[]>([]);
+  const [invoiceImagePreview, setInvoiceImagePreview] = useState<string | null>(null);
+  const [invoiceConfirmed, setInvoiceConfirmed] = useState(false);
+  const invoiceFileInputRef = useRef<HTMLInputElement>(null);
 
   // Set default vendor when vendors load
   useEffect(() => {
@@ -571,6 +581,202 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                   </div>
 
                   <div className="grid grid-cols-1 gap-4">
+                    {/* Invoice Upload */}
+                    <div>
+                      <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Invoice</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        ref={invoiceFileInputRef}
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              const base64 = reader.result as string;
+                              setInvoiceImagePreview(base64);
+                              setInvoiceConfirmed(false);
+                              setInvoiceLineItems([]);
+                              parseInvoice.mutate(
+                                { workOrderId: workOrder.id, image: base64 },
+                                {
+                                  onSuccess: (data) => {
+                                    setInvoiceLineItems(data.lineItems);
+                                    if (data.total > 0) setCost(data.total.toFixed(2));
+                                  },
+                                }
+                              );
+                            };
+                            reader.readAsDataURL(e.target.files[0]);
+                          }
+                        }}
+                      />
+                      {!invoiceImagePreview && !parseInvoice.isPending && (
+                        <button
+                          onClick={() => invoiceFileInputRef.current?.click()}
+                          className="w-full h-[38px] flex items-center justify-center gap-2 px-3 rounded-lg border border-dashed bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 text-sm transition-all"
+                        >
+                          <Receipt size={16} />
+                          Upload Invoice for Auto-Pricing
+                        </button>
+                      )}
+                      {parseInvoice.isPending && (
+                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-cre-500/10 border border-cre-500/20 text-sm text-cre-400">
+                          <Loader2 size={16} className="animate-spin" />
+                          Parsing invoice with AI...
+                        </div>
+                      )}
+                      {parseInvoice.isError && (
+                        <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400">
+                          Failed to parse invoice. You can enter costs manually below.
+                          <button
+                            onClick={() => invoiceFileInputRef.current?.click()}
+                            className="ml-2 underline hover:no-underline"
+                          >
+                            Try again
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Extracted Line Items */}
+                    {invoiceLineItems.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] text-gray-500 uppercase tracking-wider">Line Items</label>
+                          {!invoiceConfirmed && (
+                            <button
+                              onClick={() => {
+                                setInvoiceConfirmed(true);
+                                const total = invoiceLineItems.reduce((sum, item) => sum + item.total, 0);
+                                setCost(total.toFixed(2));
+                                confirmInvoice.mutate({
+                                  workOrderId: workOrder.id,
+                                  lineItems: invoiceLineItems,
+                                  invoiceImageUrl: invoiceImagePreview || undefined,
+                                });
+                              }}
+                              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors"
+                            >
+                              <Check size={12} /> Confirm Items
+                            </button>
+                          )}
+                          {invoiceConfirmed && (
+                            <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-semibold">
+                              <Check size={12} /> Confirmed
+                            </span>
+                          )}
+                        </div>
+                        <div className="rounded-lg border border-white/10 overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="bg-white/5 text-gray-500">
+                                <th className="text-left px-2 py-1.5 font-medium">Item</th>
+                                <th className="text-left px-2 py-1.5 font-medium w-20">Type</th>
+                                <th className="text-right px-2 py-1.5 font-medium w-12">Qty</th>
+                                <th className="text-right px-2 py-1.5 font-medium w-16">Price</th>
+                                <th className="text-right px-2 py-1.5 font-medium w-16">Total</th>
+                                {!invoiceConfirmed && <th className="w-8"></th>}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {invoiceLineItems.map((item, idx) => (
+                                <tr key={idx} className="border-t border-white/5">
+                                  <td className="px-2 py-1.5">
+                                    <input
+                                      value={item.description}
+                                      onChange={(e) => {
+                                        const updated = [...invoiceLineItems];
+                                        updated[idx] = { ...item, description: e.target.value };
+                                        setInvoiceLineItems(updated);
+                                      }}
+                                      disabled={invoiceConfirmed}
+                                      className="w-full bg-transparent text-white text-xs focus:outline-none disabled:text-gray-400"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5">
+                                    <select
+                                      value={item.category || 'other'}
+                                      onChange={(e) => {
+                                        const updated = [...invoiceLineItems];
+                                        updated[idx] = { ...item, category: e.target.value as any };
+                                        setInvoiceLineItems(updated);
+                                      }}
+                                      disabled={invoiceConfirmed}
+                                      className="w-full bg-transparent text-gray-400 text-xs focus:outline-none disabled:text-gray-500 appearance-none"
+                                    >
+                                      <option value="labor">Labor</option>
+                                      <option value="materials">Materials</option>
+                                      <option value="equipment">Equip</option>
+                                      <option value="other">Other</option>
+                                    </select>
+                                  </td>
+                                  <td className="px-2 py-1.5 text-right">
+                                    <input
+                                      type="number"
+                                      value={item.quantity}
+                                      onChange={(e) => {
+                                        const updated = [...invoiceLineItems];
+                                        const qty = Number(e.target.value) || 0;
+                                        updated[idx] = { ...item, quantity: qty, total: qty * item.unitPrice };
+                                        setInvoiceLineItems(updated);
+                                      }}
+                                      disabled={invoiceConfirmed}
+                                      className="w-full bg-transparent text-white text-xs text-right focus:outline-none disabled:text-gray-400"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5 text-right">
+                                    <input
+                                      type="number"
+                                      value={item.unitPrice}
+                                      onChange={(e) => {
+                                        const updated = [...invoiceLineItems];
+                                        const price = Number(e.target.value) || 0;
+                                        updated[idx] = { ...item, unitPrice: price, total: item.quantity * price };
+                                        setInvoiceLineItems(updated);
+                                      }}
+                                      disabled={invoiceConfirmed}
+                                      className="w-full bg-transparent text-white text-xs text-right focus:outline-none disabled:text-gray-400"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5 text-right text-white font-medium">
+                                    ${item.total.toFixed(2)}
+                                  </td>
+                                  {!invoiceConfirmed && (
+                                    <td className="px-1 py-1.5 text-center">
+                                      <button
+                                        onClick={() => setInvoiceLineItems(invoiceLineItems.filter((_, i) => i !== idx))}
+                                        className="text-gray-600 hover:text-rose-400 transition-colors"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </td>
+                                  )}
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="border-t border-white/10 bg-white/5">
+                                <td colSpan={invoiceConfirmed ? 4 : 5} className="px-2 py-1.5 text-right text-gray-400 font-medium text-xs">Total</td>
+                                <td className="px-2 py-1.5 text-right text-white font-bold text-xs">
+                                  ${invoiceLineItems.reduce((sum, item) => sum + item.total, 0).toFixed(2)}
+                                </td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                        {!invoiceConfirmed && (
+                          <button
+                            onClick={() => setInvoiceLineItems([...invoiceLineItems, { description: '', category: 'other', quantity: 1, unitPrice: 0, total: 0 }])}
+                            className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-cre-400 transition-colors"
+                          >
+                            <Plus size={12} /> Add line item
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Manual Cost (auto-filled from invoice if available) */}
                     <div>
                       <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Total Cost</label>
                       <div className="relative">
