@@ -1,16 +1,18 @@
 import { useState, useCallback } from 'react';
 import { useWorkOrders, useUpdateWorkOrder } from '../hooks/useWorkOrders';
-import { useRecurringTemplates } from '../hooks/useRecurringTemplates';
+import { useRecurringTemplates, useUpdateTemplate } from '../hooks/useRecurringTemplates';
+import { useProperties } from '../hooks/useProperties';
 import { usePreferredVendorMappings } from '../hooks/usePreferredVendorMappings';
 import { useVendors } from '../hooks/useVendors';
 import { WorkOrderCard } from '../components/WorkOrderCard';
 import { WorkOrderDetailModal } from '../components/WorkOrderDetailModal';
 import { NewWorkOrderModal } from '../components/NewWorkOrderModal';
+import { RecurringTemplateModal } from '../components/RecurringTemplateModal';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorBanner } from '../components/ErrorBanner';
-import type { WorkOrder, Severity, WorkOrderCategory } from '../types';
+import type { WorkOrder, RecurringTemplate, Severity, WorkOrderCategory } from '../types';
 import { CATEGORY_LABELS } from '../types';
-import { Search, Filter, SlidersHorizontal, Plus, X, RepeatIcon as Repeat, Building2, Wrench, ToggleLeft, ToggleRight, Info, Zap } from 'lucide-react';
+import { Search, Filter, SlidersHorizontal, Plus, X, RepeatIcon as Repeat, Building2, Wrench, ToggleLeft, ToggleRight, Info, Zap, Pencil, Power } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { findPreferredVendor } from '../domain/autoAssigner';
@@ -31,10 +33,13 @@ export function WorkOrdersPage() {
   const { data: mappingsData } = usePreferredVendorMappings();
   const { data: vendorsData } = useVendors();
   const { data: templatesData } = useRecurringTemplates();
+  const { data: propertiesData } = useProperties();
   const updateWorkOrder = useUpdateWorkOrder();
+  const updateTemplate = useUpdateTemplate();
 
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
   const [showNewWO, setShowNewWO] = useState(false);
+  const [templateModal, setTemplateModal] = useState<{ mode: 'create' | 'edit'; template?: RecurringTemplate } | null>(null);
   const [search, setSearch] = useState('');
   const [severityFilter, setSeverityFilter] = useState<Severity | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState<WorkOrderCategory | 'all'>('all');
@@ -67,6 +72,7 @@ export function WorkOrdersPage() {
   const mappings = mappingsData || [];
   const vendors = vendorsData?.items || [];
   const recurringTemplates = templatesData || [];
+  const propertiesMap = new Map((propertiesData?.items ?? []).map(p => [p.id, p.name]));
 
   // Auto-assign logic for new work orders
   const handleNewWOCreated = () => {
@@ -172,14 +178,24 @@ export function WorkOrdersPage() {
           </p>
         </div>
         {!isVendor && (
-          <button
-            onClick={() => setShowNewWO(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cre-500 to-cre-600 text-white text-sm font-semibold hover:from-cre-400 hover:to-cre-500 transition-all shadow-lg shadow-cre-500/20"
-            id="create-work-order-btn"
-          >
-            <Plus size={16} />
-            New Work Order
-          </button>
+          activeTab === 'recurring' ? (
+            <button
+              onClick={() => setTemplateModal({ mode: 'create' })}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cre-500 to-cre-600 text-white text-sm font-semibold hover:from-cre-400 hover:to-cre-500 transition-all shadow-lg shadow-cre-500/20"
+            >
+              <Plus size={16} />
+              New Template
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowNewWO(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cre-500 to-cre-600 text-white text-sm font-semibold hover:from-cre-400 hover:to-cre-500 transition-all shadow-lg shadow-cre-500/20"
+              id="create-work-order-btn"
+            >
+              <Plus size={16} />
+              New Work Order
+            </button>
+          )
         )}
       </div>
 
@@ -357,11 +373,18 @@ export function WorkOrdersPage() {
       {activeTab === 'recurring' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-up">
           {filteredTemplates.map(rt => (
-            <div key={rt.id} className="glass-card p-6 flex flex-col justify-between">
+            <div key={rt.id} className={`glass-card p-6 flex flex-col justify-between ${!rt.isActive ? 'opacity-50' : ''}`}>
               <div>
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-white font-semibold truncate pr-4">{rt.name}</h3>
-                  <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-cre-500/20 text-cre-300 uppercase shrink-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h3 className="text-white font-semibold truncate">{rt.name}</h3>
+                    {!rt.isActive && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-500/20 text-gray-400 uppercase shrink-0">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                  <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-cre-500/20 text-cre-300 uppercase shrink-0 ml-2">
                     {rt.frequency}
                   </span>
                 </div>
@@ -374,9 +397,31 @@ export function WorkOrdersPage() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <Building2 size={14} className="text-gray-400" />
-                    <span className="truncate">{rt.propertyId}</span>
+                    <span className="truncate">{propertiesMap.get(rt.propertyId) ?? rt.propertyId}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5">
+                <button
+                  onClick={() => setTemplateModal({ mode: 'edit', template: rt })}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  <Pencil size={12} />
+                  Edit
+                </button>
+                <button
+                  onClick={() => updateTemplate.mutate({ id: rt.id, isActive: !rt.isActive })}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    rt.isActive
+                      ? 'text-amber-400 hover:bg-amber-500/10'
+                      : 'text-emerald-400 hover:bg-emerald-500/10'
+                  }`}
+                >
+                  <Power size={12} />
+                  {rt.isActive ? 'Deactivate' : 'Activate'}
+                </button>
               </div>
             </div>
           ))}
@@ -430,6 +475,14 @@ export function WorkOrdersPage() {
         <NewWorkOrderModal
           onClose={() => setShowNewWO(false)}
           onSubmit={handleNewWOCreated}
+        />
+      )}
+
+      {templateModal && (
+        <RecurringTemplateModal
+          mode={templateModal.mode}
+          template={templateModal.template}
+          onClose={() => setTemplateModal(null)}
         />
       )}
     </div>
