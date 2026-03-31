@@ -5,7 +5,7 @@
 // within a configurable time window (default 7 days).
 // ============================================================
 
-import { WorkOrder } from '../types';
+import { WorkOrder } from '../types/index.js';
 
 export interface RepeatIssue {
   currentWorkOrder: WorkOrder;

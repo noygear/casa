@@ -4,20 +4,25 @@ import { AppShell } from './components/AppShell';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { TenantDashboardPage } from './pages/TenantDashboardPage';
+import { AssetManagerDashboardPage } from './pages/AssetManagerDashboardPage';
 import { WorkOrdersPage } from './pages/WorkOrdersPage';
 import { VendorsPage } from './pages/VendorsPage';
 import { PropertiesPage } from './pages/PropertiesPage';
 import { LandingPage } from './pages/LandingPage';
 import { SLACompliancePage } from './pages/SLACompliancePage';
+import { TenantMaintenanceHistoryPage } from './pages/TenantMaintenanceHistoryPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!isAuthenticated) return <Navigate to="/" replace />;
   return <AppShell>{children}</AppShell>;
 }
 
 export default function App() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) return null;
 
   return (
     <Routes>
@@ -28,14 +33,17 @@ export default function App() {
       />
       <Route path="/dashboard" element={
         <ProtectedRoute>
-          {user?.role === 'tenant' ? <TenantDashboardPage /> : <DashboardPage />}
+          {user?.role === 'tenant' ? <TenantDashboardPage /> :
+           user?.role === 'asset_manager' ? <AssetManagerDashboardPage /> :
+           <DashboardPage />}
         </ProtectedRoute>
       } />
       <Route path="/work-orders" element={<ProtectedRoute><WorkOrdersPage /></ProtectedRoute>} />
       <Route path="/vendors" element={<ProtectedRoute><VendorsPage /></ProtectedRoute>} />
       <Route path="/properties" element={<ProtectedRoute><PropertiesPage /></ProtectedRoute>} />
       <Route path="/sla-compliance" element={<ProtectedRoute><SLACompliancePage /></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
+      <Route path="/maintenance-history" element={<ProtectedRoute><TenantMaintenanceHistoryPage /></ProtectedRoute>} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />} />
     </Routes>
   );
 }

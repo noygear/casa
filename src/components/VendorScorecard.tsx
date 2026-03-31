@@ -1,4 +1,5 @@
 import { getScoreColor, getScoreGrade } from '../domain/vendorScoringEngine';
+import { Shield, FileCheck } from 'lucide-react';
 import type { VendorScoreRecord, Vendor } from '../types';
 
 interface VendorScorecardProps {
@@ -88,6 +89,49 @@ export function VendorScorecard({ vendor, score }: VendorScorecardProps) {
           </div>
         )}
       </div>
+
+      {/* Credential Badges */}
+      {(vendor.licenseNo || vendor.insuranceExp) && (
+        <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-white/5">
+          {vendor.licenseNo && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cre-500/10 border border-cre-500/20 text-xs font-medium text-cre-400">
+              <FileCheck size={12} />
+              Lic: {vendor.licenseNo}
+            </span>
+          )}
+          {vendor.insuranceExp && <InsuranceBadge expiryDate={vendor.insuranceExp} />}
+        </div>
+      )}
     </div>
+  );
+}
+
+function InsuranceBadge({ expiryDate }: { expiryDate: string }) {
+  const now = new Date();
+  const exp = new Date(expiryDate);
+  const daysUntil = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  let colorClasses: string;
+  let label: string;
+
+  if (daysUntil < 0) {
+    colorClasses = 'bg-red-500/10 border-red-500/20 text-red-400';
+    label = 'Expired';
+  } else if (daysUntil <= 30) {
+    colorClasses = 'bg-red-500/10 border-red-500/20 text-red-400';
+    label = `${daysUntil}d left`;
+  } else if (daysUntil <= 60) {
+    colorClasses = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
+    label = `${daysUntil}d left`;
+  } else {
+    colorClasses = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
+    label = 'Active';
+  }
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium ${colorClasses}`}>
+      <Shield size={12} />
+      Insurance: {label}
+    </span>
   );
 }

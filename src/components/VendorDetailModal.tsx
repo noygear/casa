@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { X, TrendingUp, Calendar, Building2, DollarSign } from 'lucide-react';
+import { X, TrendingUp, Calendar, Building2, DollarSign, FileCheck, Shield } from 'lucide-react';
 import { Vendor } from '../types';
-import { MOCK_WORK_ORDERS, MOCK_PROPERTIES } from '../data/mockData';
+import { useWorkOrders } from '../hooks/useWorkOrders';
+import { useProperties } from '../hooks/useProperties';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { subDays, startOfMonth, format, isAfter } from 'date-fns';
 
@@ -16,10 +17,15 @@ export function VendorDetailModal({ vendor, onClose }: VendorDetailModalProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>('12months');
   const [propertyFilter, setPropertyFilter] = useState<string>('all');
 
+  const { data: workOrdersData } = useWorkOrders({ vendorId: vendor.id });
+  const { data: propertiesData } = useProperties();
+  const properties = propertiesData?.items || [];
+
   // Filter to only closed work orders for this vendor
   const vendorOrders = useMemo(() => {
-    return MOCK_WORK_ORDERS.filter(wo => wo.vendorId === vendor.id && wo.status === 'closed' && wo.cost !== null);
-  }, [vendor.id]);
+    const allOrders = workOrdersData?.items || [];
+    return allOrders.filter(wo => wo.status === 'closed' && wo.cost !== null);
+  }, [workOrdersData]);
 
   // Apply filters
   const filteredOrders = useMemo(() => {
@@ -90,7 +96,60 @@ export function VendorDetailModal({ vendor, onClose }: VendorDetailModalProps) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          
+
+          {/* Credentials */}
+          {(vendor.licenseNo || vendor.insuranceExp) && (
+            <div className="glass-card p-5 rounded-xl">
+              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <Shield size={16} className="text-cre-400" />
+                Credentials
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {vendor.licenseNo && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/5">
+                    <FileCheck size={18} className="text-cre-400 mt-0.5 shrink-0" />
+                    <div>
+                      <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">License Number</div>
+                      <div className="text-sm font-medium text-white">{vendor.licenseNo}</div>
+                    </div>
+                  </div>
+                )}
+                {vendor.insuranceExp && (() => {
+                  const exp = new Date(vendor.insuranceExp);
+                  const now = new Date();
+                  const daysUntil = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+                  let statusColor: string;
+                  let statusText: string;
+                  if (daysUntil < 0) {
+                    statusColor = 'text-red-400';
+                    statusText = `Expired ${Math.abs(daysUntil)} days ago`;
+                  } else if (daysUntil <= 30) {
+                    statusColor = 'text-red-400';
+                    statusText = `Expires in ${daysUntil} days`;
+                  } else if (daysUntil <= 60) {
+                    statusColor = 'text-amber-400';
+                    statusText = `Expires in ${daysUntil} days`;
+                  } else {
+                    statusColor = 'text-emerald-400';
+                    statusText = `Active — ${daysUntil} days remaining`;
+                  }
+
+                  return (
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/5">
+                      <Shield size={18} className={`${statusColor} mt-0.5 shrink-0`} />
+                      <div>
+                        <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Insurance Expiry</div>
+                        <div className="text-sm font-medium text-white">{format(exp, 'MMM dd, yyyy')}</div>
+                        <div className={`text-xs font-medium mt-0.5 ${statusColor}`}>{statusText}</div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
           {/* Controls & Summary */}
           <div className="flex flex-col lg:flex-row gap-6 justify-between">
             <div className="flex items-center gap-4">
@@ -129,7 +188,7 @@ export function VendorDetailModal({ vendor, onClose }: VendorDetailModalProps) {
                   className="pl-9 pr-8 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-cre-500/50 appearance-none cursor-pointer hover:bg-white/10 transition-colors"
                 >
                   <option value="all" className="bg-cre-950">All Properties</option>
-                  {MOCK_PROPERTIES.map(p => (
+                  {properties.map(p => (
                     <option key={p.id} value={p.id} className="bg-cre-950">{p.name}</option>
                   ))}
                 </select>

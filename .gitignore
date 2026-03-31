@@ -20,3 +20,11 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Embedded Postgres data
+.pg-data/
+
+# Test artifacts
+cookies.txt
+pjar.txt
+proxy_cookies.txt

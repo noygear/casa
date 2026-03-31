@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Terminal, Calendar as CalendarIcon, MousePointer2 } from 'lucide-react';
+import { DotGrid } from '../components/DotGrid';
 
 export function LandingPage() {
   // Custom hook for scroll animations
@@ -77,15 +78,16 @@ export function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-obsidian text-cool-grey font-sans relative selection:bg-cre-500 selection:text-white overflow-x-hidden">
-      {/* Global CSS Noise Overlay */}
-      <div className="bg-noise" />
+    <div className="min-h-screen bg-black text-cool-grey font-sans relative selection:bg-cre-500 selection:text-white overflow-x-hidden">
+      {/* Interactive Dot Grid Background */}
+      <DotGrid />
+
 
       {/* A. NAVBAR */}
       <nav className="relative z-20 flex items-center justify-between px-6 py-6 md:px-12">
         <div className="text-2xl font-bold font-sans tracking-tight text-white flex items-center gap-3">
           <div className="w-8 h-8 bg-cre-500 rounded animate-pulse-slow"></div>
-          CARDO
+          CASA
         </div>
         <Link 
           to="/login"
@@ -108,14 +110,14 @@ export function LandingPage() {
               System.
             </h2>
             <p className="text-lg sm:text-xl max-w-lg mb-12 leading-relaxed text-cool-grey font-light">
-              Cardo is the central operating axis for institutional real estate, enforcing structured maintenance accountability and vendor performance.
+              Casa is the central operating axis for institutional real estate, enforcing structured maintenance accountability and vendor performance.
             </p>
             <div>
               <Link 
                 to="/login"
                 className="inline-flex items-center gap-4 px-8 py-5 bg-cre-500 text-white uppercase font-bold text-sm tracking-widest rounded-full hover:scale-[1.03] transition-transform duration-300 shadow-2xl shadow-cre-500/20"
               >
-                Deploy Cardo System <ArrowRight size={18} />
+                Deploy Casa System <ArrowRight size={18} />
               </Link>
             </div>
           </div>
@@ -181,7 +183,7 @@ export function LandingPage() {
       </main>
 
       {/* D. PHILOSOPHY SECTION */}
-      <section className="relative z-10 py-32 border-y border-white/5 bg-[#0A0A0A] overflow-hidden">
+      <section className="relative z-10 py-32 border-y border-white/5 overflow-hidden">
         <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-1000 max-w-5xl mx-auto px-6 md:px-12 text-center">
           <h3 className="text-3xl md:text-5xl font-serif italic text-white leading-tight mb-8">
             Most property management focuses on:<br/>
@@ -238,7 +240,7 @@ export function LandingPage() {
 
       {/* FOOTER */}
       <footer className="relative z-10 border-t border-white/5 py-12 text-center text-sm font-mono text-cool-grey/50">
-        <p>CARDO SYSTEMS INC. ALL RIGHTS RESERVED {new Date().getFullYear()}.</p>
+        <p>CASA SYSTEMS INC. ALL RIGHTS RESERVED {new Date().getFullYear()}.</p>
       </footer>
     </div>
   );

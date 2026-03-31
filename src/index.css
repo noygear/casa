@@ -16,6 +16,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.glow-gradient-bg {
+  background: linear-gradient(120deg, #1f2937 0%, #0f172a 25%, #1e3a8a 50%, #3b82f6 75%, #1e40af 100%);
+  background-size: 200% 200%;
+}
+
 .bg-noise {
   position: absolute;
   inset: 0;
@@ -131,6 +136,15 @@ body {
 .animate-slide-up-delay-2 { animation-delay: 0.2s; }
 .animate-slide-up-delay-3 { animation-delay: 0.3s; }
 .animate-slide-up-delay-4 { animation-delay: 0.4s; }
+
+.animate-slide-right {
+  animation: slideRight 0.25s ease-out both;
+}
+
+@keyframes slideRight {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
 
 .skeleton-shimmer {
   background: linear-gradient(

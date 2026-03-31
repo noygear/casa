@@ -1,69 +1,55 @@
 import { useState } from 'react';
 import { X, Wrench, MapPin, AlertCircle } from 'lucide-react';
-import { MOCK_PROPERTIES, MOCK_SPACES, MOCK_WORK_ORDERS } from '../data/mockData';
-import { CATEGORY_LABELS, Severity } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+import { useProperties } from '../hooks/useProperties';
+import { useCreateWorkOrder } from '../hooks/useWorkOrders';
+import { CATEGORY_LABELS, Severity, WorkOrderCategory } from '../types';
 
 interface NewWorkOrderModalProps {
   onClose: () => void;
   onSubmit?: () => void;
 }
 
-const SEVERITY_SLA: Record<Severity, { responseMin: number; resolveMin: number }> = {
-  immediate: { responseMin: 60, resolveMin: 240 },
-  needs_fix_today: { responseMin: 240, resolveMin: 1440 },
-  minor: { responseMin: 480, resolveMin: 2880 },
-};
-
 export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps) {
-  const { user } = useAuth();
+  const { data: propertiesData } = useProperties();
+  const createWorkOrder = useCreateWorkOrder();
+
   const [propertyId, setPropertyId] = useState('');
   const [spaceId, setSpaceId] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('general');
+  const [category, setCategory] = useState<WorkOrderCategory>('general');
   const [severity, setSeverity] = useState<Severity>('minor');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const spaces = MOCK_SPACES.filter(s => s.propertyId === propertyId);
+  const properties = propertiesData?.items || [];
+  const selectedProperty = properties.find(p => p.id === propertyId);
+  const spaces = selectedProperty?.spaces || [];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const property = MOCK_PROPERTIES.find(p => p.id === propertyId);
-    const space = spaceId ? MOCK_SPACES.find(s => s.id === spaceId) : undefined;
-    const sla = SEVERITY_SLA[severity];
-    const now = new Date().toISOString();
-
-    MOCK_WORK_ORDERS.push({
-      id: `wo-${Date.now()}`,
-      title,
-      description,
-      category: category as any,
-      severity,
-      status: 'open',
-      isInspection: false,
-      cost: null,
-      propertyId,
-      property,
-      spaceId: spaceId || null,
-      space,
-      createdById: user!.id,
-      createdBy: user!,
-      slaResponseMin: sla.responseMin,
-      slaResolveMin: sla.resolveMin,
-      createdAt: now,
-      updatedAt: now,
-      photos: [],
-      auditLog: [],
-    });
-
-    onSubmit?.();
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await createWorkOrder.mutateAsync({
+        title,
+        description,
+        category,
+        severity,
+        propertyId,
+        spaceId: spaceId || null,
+      });
+      onSubmit?.();
+      onClose();
+    } catch (err) {
+      console.error('Failed to create work order:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 drop-shadow-2xl">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      
+
       <div className="relative w-full max-w-2xl max-h-[90vh] bg-cre-950 border border-white/10 rounded-2xl shadow-2xl flex flex-col animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-white/5">
@@ -96,7 +82,7 @@ export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps)
                     className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-cre-500/50 appearance-none cursor-pointer"
                   >
                     <option value="" className="bg-cre-950 text-gray-400">Select Property...</option>
-                    {MOCK_PROPERTIES.map(p => (
+                    {properties.map(p => (
                       <option key={p.id} value={p.id} className="bg-cre-950 text-white">{p.name}</option>
                     ))}
                   </select>
@@ -123,7 +109,7 @@ export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps)
                 <select
                   required
                   value={category}
-                  onChange={e => setCategory(e.target.value)}
+                  onChange={e => setCategory(e.target.value as WorkOrderCategory)}
                   className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-cre-500/50 appearance-none cursor-pointer"
                 >
                   {Object.entries(CATEGORY_LABELS).map(([val, label]) => (
@@ -184,9 +170,10 @@ export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps)
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20"
+              disabled={isSubmitting}
+              className="px-5 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50"
             >
-              Submit Request
+              {isSubmitting ? 'Submitting...' : 'Submit Request'}
             </button>
           </div>
         </form>

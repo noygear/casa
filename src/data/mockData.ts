@@ -2,14 +2,14 @@
 // Mock Data — CRE Operations Platform
 // ============================================================
 
-import { User, Property, Space, Vendor, WorkOrder, VendorScoreRecord, RecurringTemplate } from '../types';
+import { User, Property, Space, Vendor, WorkOrder, VendorScoreRecord, RecurringTemplate, PreferredVendorMapping } from '../types';
 import { subDays, addHours, subHours } from 'date-fns';
 
 // ── Users ────────────────────────────────────────────────────
 
 export const MOCK_USERS: User[] = [
   {
-    id: 'u-001', email: 'sarah.chen@cardo.com', name: 'Sarah Chen',
+    id: 'u-001', email: 'sarah.chen@casa.com', name: 'Sarah Chen',
     role: 'asset_manager', createdAt: '2025-01-15T00:00:00Z', updatedAt: '2025-01-15T00:00:00Z',
   },
   {
@@ -45,18 +45,24 @@ export const MOCK_PROPERTIES: Property[] = [
     id: 'p-001', name: 'Meridian Tower', address: '1200 Commerce Blvd',
     city: 'Dallas', state: 'TX', zipCode: '75201', type: 'Office',
     totalSqFt: 285000, yearBuilt: 2018,
+    latitude: 32.7767, longitude: -96.7970,
+    occupancyPercent: 92, monthlyRevenue: 425000,
     createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z',
   },
   {
     id: 'p-002', name: 'Riverfront Plaza', address: '800 Trinity Ave',
     city: 'Fort Worth', state: 'TX', zipCode: '76102', type: 'Mixed-Use',
     totalSqFt: 420000, yearBuilt: 2015,
+    latitude: 32.7555, longitude: -97.3308,
+    occupancyPercent: 87, monthlyRevenue: 580000,
     createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z',
   },
   {
     id: 'p-003', name: 'Oakmont Business Park', address: '3500 Innovation Dr',
     city: 'Plano', state: 'TX', zipCode: '75024', type: 'Industrial',
     totalSqFt: 180000, yearBuilt: 2020,
+    latitude: 33.0198, longitude: -96.6989,
+    occupancyPercent: 95, monthlyRevenue: 210000,
     createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z',
   },
 ];
@@ -368,4 +374,27 @@ export const MOCK_RECURRING_TEMPLATES: RecurringTemplate[] = [
     vendorId: 'v-003', isActive: true,
     createdAt: '2025-02-01T00:00:00Z', updatedAt: '2025-02-01T00:00:00Z',
   },
+];
+
+// ── Preferred Vendor Mappings ───────────────────────────────
+
+export const MOCK_PREFERRED_VENDOR_MAPPINGS: PreferredVendorMapping[] = [
+  { id: 'pvm-001', propertyId: 'p-001', category: 'hvac', vendorId: 'v-001', priority: 1 },
+  { id: 'pvm-002', propertyId: 'p-001', category: 'electrical', vendorId: 'v-002', priority: 1 },
+  { id: 'pvm-003', propertyId: 'p-001', category: 'janitorial', vendorId: 'v-003', priority: 1 },
+  { id: 'pvm-004', propertyId: 'p-001', category: 'elevator', vendorId: 'v-004', priority: 1 },
+  { id: 'pvm-005', propertyId: 'p-002', category: 'hvac', vendorId: 'v-001', priority: 1 },
+  { id: 'pvm-006', propertyId: 'p-002', category: 'electrical', vendorId: 'v-002', priority: 1 },
+  { id: 'pvm-007', propertyId: 'p-002', category: 'elevator', vendorId: 'v-004', priority: 1 },
+  { id: 'pvm-008', propertyId: 'p-002', category: 'janitorial', vendorId: 'v-003', priority: 1 },
+  { id: 'pvm-009', propertyId: 'p-003', category: 'hvac', vendorId: 'v-001', priority: 1 },
+  { id: 'pvm-010', propertyId: 'p-003', category: 'electrical', vendorId: 'v-002', priority: 1 },
+];
+
+// ── Property Budgets ────────────────────────────────────────
+
+export const MOCK_PROPERTY_BUDGETS: { propertyId: string; annualBudget: number }[] = [
+  { propertyId: 'p-001', annualBudget: 150000 },
+  { propertyId: 'p-002', annualBudget: 200000 },
+  { propertyId: 'p-003', annualBudget: 80000 },
 ];

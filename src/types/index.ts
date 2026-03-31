@@ -21,7 +21,14 @@ export type WorkOrderCategory =
 
 export type MaintenanceFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually' | 'custom';
 
-export type PhotoType = 'before' | 'after' | 'completion';
+export type PhotoType = 'before' | 'after' | 'completion' | 'start';
+
+export interface GPSCoordinate {
+  latitude: number;
+  longitude: number;
+  accuracy: number; // meters
+  capturedAt: string; // ISO timestamp
+}
 
 // ── Models ───────────────────────────────────────────────────
 
@@ -48,6 +55,10 @@ export interface Property {
   totalSqFt?: number;
   yearBuilt?: number;
   imageUrl?: string;
+  latitude?: number;
+  longitude?: number;
+  occupancyPercent?: number;
+  monthlyRevenue?: number;
   createdAt: string;
   updatedAt: string;
   spaces?: Space[];
@@ -118,6 +129,7 @@ export interface WorkOrderPhoto {
   type: PhotoType;
   caption?: string;
   uploadedAt: string;
+  gps?: GPSCoordinate;
 }
 
 export interface WorkOrderAuditLog {
@@ -183,6 +195,14 @@ export interface SLAConfiguration {
   severity: Severity;
   responseTimeMin: number;
   resolveTimeMin: number;
+}
+
+export interface PreferredVendorMapping {
+  id: string;
+  propertyId: string;
+  category: WorkOrderCategory;
+  vendorId: string;
+  priority: number; // 1 = primary, 2 = backup
 }
 
 // ── Utility Types ────────────────────────────────────────────
