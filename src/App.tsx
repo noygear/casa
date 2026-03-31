@@ -10,6 +10,7 @@ import { VendorsPage } from './pages/VendorsPage';
 import { PropertiesPage } from './pages/PropertiesPage';
 import { LandingPage } from './pages/LandingPage';
 import { SLACompliancePage } from './pages/SLACompliancePage';
+import { TenantMaintenanceHistoryPage } from './pages/TenantMaintenanceHistoryPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -41,6 +42,7 @@ export default function App() {
       <Route path="/vendors" element={<ProtectedRoute><VendorsPage /></ProtectedRoute>} />
       <Route path="/properties" element={<ProtectedRoute><PropertiesPage /></ProtectedRoute>} />
       <Route path="/sla-compliance" element={<ProtectedRoute><SLACompliancePage /></ProtectedRoute>} />
+      <Route path="/maintenance-history" element={<ProtectedRoute><TenantMaintenanceHistoryPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />} />
     </Routes>
   );

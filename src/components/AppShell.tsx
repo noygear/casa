@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ROLE_LABELS } from '../types';
 import {
   LayoutDashboard, ClipboardList, Building2, Users,
-  LogOut, ChevronLeft, Menu
+  LogOut, ChevronLeft, Menu, History
 } from 'lucide-react';
 import { useState } from 'react';
 import { FeedbackButton } from './FeedbackButton';
@@ -15,6 +15,7 @@ interface AppShellProps {
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/work-orders', label: 'Work Orders', icon: ClipboardList },
+  { to: '/maintenance-history', label: 'History', icon: History },
   { to: '/properties', label: 'Properties', icon: Building2 },
   { to: '/vendors', label: 'Vendors', icon: Users },
 ];
@@ -25,7 +26,7 @@ export function AppShell({ children }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const filteredNavItems = NAV_ITEMS.filter(item => {
-    if (user?.role === 'tenant') return ['/dashboard', '/work-orders'].includes(item.to);
+    if (user?.role === 'tenant') return ['/dashboard', '/work-orders', '/maintenance-history'].includes(item.to);
     if (user?.role === 'vendor') return ['/dashboard', '/work-orders'].includes(item.to);
     return true; // AM & PM see everything
   });
