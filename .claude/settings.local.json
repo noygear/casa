@@ -20,7 +20,11 @@
       "Bash(cp /tmp/casa-changes/new/BudgetOverview.tsx src/components/BudgetOverview.tsx)",
       "Bash(cp /tmp/casa-changes/new/ComplaintVolumeChart.tsx src/components/ComplaintVolumeChart.tsx)",
       "Bash(cp /tmp/casa-changes/modified/DashboardPage.tsx src/pages/DashboardPage.tsx)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Skill(review)",
+      "Skill(review:*)",
+      "Skill(gstack-upgrade)",
+      "Skill(gstack-upgrade:*)"
     ]
   }
 }
