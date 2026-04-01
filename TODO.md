@@ -1,5 +1,19 @@
 # TODO
 
+## Technical Debt
+
+- [ ] **Properly type implicit-any callback parameters in server services**
+  `noImplicitAny` was disabled in `server/tsconfig.json` to unblock CI. The following
+  service files have untyped lambda parameters that should be given explicit types:
+  `analytics.service.ts`, `recurringGeneration.service.ts`, `sla.service.ts`,
+  `vendor.service.ts`, `workOrder.service.ts`.
+
+- [ ] **Import PhotoType from `@prisma/client` once prisma generate is stable in CI**
+  `photo.service.ts` imports `PhotoType` from the shared frontend types
+  (`src/types/index.ts`) as a workaround because `@prisma/client` only exports it after
+  `prisma generate` runs. Once the CI `prisma generate` step is confirmed reliable, switch
+  the import back to `import type { PhotoType } from '@prisma/client'`.
+
 ## Deployment & Infrastructure
 
 - [ ] **Review app FRONTEND_URL doesn't allow Vercel preview frontend**
