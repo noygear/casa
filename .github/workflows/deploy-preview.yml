@@ -48,8 +48,7 @@ jobs:
               --initial-cluster-size 1 \
               --vm-size shared-cpu-1x \
               --volume-size 1 \
-              --org noygear \
-              --yes
+              --org noygear
             flyctl postgres attach "$DB_NAME" --app "$APP_NAME" --yes
           fi
 
