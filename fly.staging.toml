@@ -1,12 +1,11 @@
-# Fly.io configuration for Casa CRE API — develop
 app = "casa-cre-develop"
-primary_region = "dfw"
+primary_region = "iad"
 
 [build]
   dockerfile = "server/Dockerfile"
 
 [deploy]
-  release_command = "npx prisma migrate deploy --schema=./prisma/schema.prisma"
+  release_command = "node_modules/.bin/prisma migrate deploy --schema=./prisma/schema.prisma"
 
 [env]
   NODE_ENV = "production"
@@ -15,9 +14,9 @@ primary_region = "dfw"
 [http_service]
   internal_port = 3001
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = "suspend"
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
   processes = ["app"]
 
   [http_service.concurrency]

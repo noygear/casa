@@ -10,10 +10,11 @@ COPY prisma/ ./prisma/
 COPY src/domain/ ./src/domain/
 COPY src/types/ ./src/types/
 
-# Copy server source
+# Copy server source and seed script
 COPY server/package.json server/package-lock.json* ./server/
 COPY server/tsconfig.json ./server/
 COPY server/src/ ./server/src/
+COPY server/prisma/ ./server/prisma/
 
 # Install dependencies and generate Prisma client
 WORKDIR /app/server
