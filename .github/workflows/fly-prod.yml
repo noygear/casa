@@ -1,4 +1,4 @@
-name: deploy production
+name: fly-prod
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-production
+  group: fly-prod
   cancel-in-progress: false
 
 permissions:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   deploy:
-    name: deploy casa-cre
+    name: deploy casa-cre-prod
     runs-on: ubuntu-latest
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD }}
@@ -24,4 +24,4 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - run: flyctl deploy --remote-only --config fly.production.toml --app casa-cre
+      - run: flyctl deploy --remote-only --config fly.toml --app casa-cre-prod
