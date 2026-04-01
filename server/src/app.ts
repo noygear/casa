@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { errorHandler } from './middleware/errorHandler.js';
 
 // Routes
@@ -12,6 +14,9 @@ import spaceRoutes from './routes/space.routes.js';
 import slaRoutes from './routes/sla.routes.js';
 import recurringRoutes from './routes/recurring.routes.js';
 import vendorMappingRoutes from './routes/vendorMapping.routes.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const STATIC_DIR = path.resolve(__dirname, '../../public');
 
 export function createApp() {
   const app = express();
@@ -35,10 +40,8 @@ export function createApp() {
   app.use(express.json({ limit: '10mb' }));
   app.use(cookieParser());
 
-  // Root redirect → login
-  app.get('/', (_req, res) => {
-    res.redirect('/login');
-  });
+  // Serve frontend static files (production)
+  app.use(express.static(STATIC_DIR));
 
   // Health check
   app.get('/api/health', (_req, res) => {
@@ -136,6 +139,11 @@ export function createApp() {
   app.use('/api/sla', slaRoutes);
   app.use('/api/recurring-templates', recurringRoutes);
   app.use('/api/preferred-vendor-mappings', vendorMappingRoutes);
+
+  // SPA fallback — serve index.html for all non-API routes
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(STATIC_DIR, 'index.html'));
+  });
 
   // Global error handler (must be last)
   app.use(errorHandler);

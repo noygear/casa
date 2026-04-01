@@ -1,4 +1,22 @@
-# ── Builder Stage ─────────────────────────────────────────────
+# ── Frontend Builder ───────────────────────────────────────────
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app
+
+# Copy frontend source
+COPY package.json package-lock.json* ./
+COPY tsconfig*.json ./
+COPY vite.config.* ./
+COPY tailwind.config.* ./
+COPY postcss.config.* ./
+COPY index.html ./
+COPY src/ ./src/
+COPY public/ ./public/ 2>/dev/null || true
+
+RUN npm ci
+RUN npm run build
+
+# ── Backend Builder ────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -22,15 +40,18 @@ RUN npm ci
 RUN npx prisma generate --schema=../prisma/schema.prisma
 RUN npx tsc
 
-# ── Runtime Stage ─────────────────────────────────────────────
+# ── Runtime Stage ──────────────────────────────────────────────
 FROM node:20-alpine AS runtime
 
 WORKDIR /app
 
-# Copy built output
+# Copy built backend
 COPY --from=builder /app/server/dist/ ./dist/
 COPY --from=builder /app/server/node_modules/ ./node_modules/
 COPY --from=builder /app/prisma/ ./prisma/
+
+# Copy built frontend
+COPY --from=frontend-builder /app/dist/ ./public/
 
 # Re-generate Prisma client for runtime
 RUN npx prisma generate --schema=./prisma/schema.prisma
