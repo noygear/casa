@@ -1,0 +1,64 @@
+name: Deploy Preview
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy PR preview app
+        id: deploy
+        uses: superfly/fly-pr-review-apps@1.5.0
+        with:
+          name: pr-${{ github.event.number }}-${{ github.repository_owner }}-casa-cre
+          config: fly.preview.toml
+          org: noygear
+          region: iad
+          secrets: >-
+            DATABASE_URL=${{ secrets.PREVIEW_DATABASE_URL }}
+            JWT_SECRET=${{ secrets.REVIEW_JWT_SECRET }}
+            FRONTEND_URL=https://pr-${{ github.event.number }}-${{ github.repository_owner }}-casa-cre.fly.dev
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_REVIEW }}
+
+      - name: Comment preview URL on PR
+        uses: actions/github-script@v7
+        if: steps.deploy.outputs.url
+        with:
+          script: |
+            const url = '${{ steps.deploy.outputs.url }}';
+            const body = `### Preview deployment ready\n\n| Environment | URL |\n|---|---|\n| API | ${url} |\n\nDefault login: \`sarah.chen@casa.com\` / \`Casa2025!\``;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Destroy PR preview app
+        uses: superfly/fly-pr-review-apps@1.5.0
+        with:
+          name: pr-${{ github.event.number }}-${{ github.repository_owner }}-casa-cre
+          config: fly.preview.toml
+          org: noygear
+          region: iad
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_REVIEW }}
