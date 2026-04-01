@@ -35,6 +35,11 @@ export function createApp() {
   app.use(express.json({ limit: '10mb' }));
   app.use(cookieParser());
 
+  // Root redirect → API landing page
+  app.get('/', (_req, res) => {
+    res.redirect('/api');
+  });
+
   // Health check
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
