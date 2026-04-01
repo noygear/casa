@@ -11,7 +11,7 @@ COPY tailwind.config.* ./
 COPY postcss.config.* ./
 COPY index.html ./
 COPY src/ ./src/
-COPY public/ ./public/ 2>/dev/null || true
+COPY public/ ./public/
 
 RUN npm ci
 RUN npm run build
