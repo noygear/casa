@@ -27,13 +27,10 @@ FROM node:20-alpine AS runtime
 
 WORKDIR /app
 
-# Copy built output and dependencies
+# Copy built output
 COPY --from=builder /app/server/dist/ ./dist/
 COPY --from=builder /app/server/node_modules/ ./node_modules/
 COPY --from=builder /app/prisma/ ./prisma/
-
-# Copy seed script for preview environments (run via release_command in fly.preview.toml)
-COPY --from=builder /app/server/prisma/seed.ts ./server/prisma/seed.ts
 
 # Re-generate Prisma client for runtime
 RUN npx prisma generate --schema=./prisma/schema.prisma
@@ -43,5 +40,4 @@ ENV PORT=3001
 
 EXPOSE 3001
 
-# Migrations are handled by fly.toml release_command before deployment
 CMD ["node", "dist/server/src/index.js"]
