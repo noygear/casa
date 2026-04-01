@@ -24,4 +24,4 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - run: flyctl deploy --remote-only --config fly.staging.toml --app casa-cre-develop
+      - run: flyctl deploy --remote-only --config fly.toml --app casa-cre-develop
