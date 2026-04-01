@@ -25,7 +25,9 @@
       "Skill(review:*)",
       "Skill(gstack-upgrade)",
       "Skill(gstack-upgrade:*)",
-      "Bash(find /c/Users/frede/Documents/git/casa/.claude/worktrees/brave-chatelet -type f -name *.md -o -name Dockerfile -o -name fly*.toml)"
+      "Bash(find /c/Users/frede/Documents/git/casa/.claude/worktrees/brave-chatelet -type f -name *.md -o -name Dockerfile -o -name fly*.toml)",
+      "Skill(ship)",
+      "Skill(ship:*)"
     ]
   }
 }
