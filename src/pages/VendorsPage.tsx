@@ -23,9 +23,6 @@ export function VendorsPage() {
   const { data: mappingsData } = usePreferredVendorMappings();
   const { data: propertiesData } = useProperties();
 
-  if (vendorsLoading || scoresLoading) return <LoadingSpinner />;
-  if (vendorsError) return <ErrorBanner message={vendorsErr?.message || 'Failed to load vendors'} onRetry={refetchVendors} />;
-
   const vendors = vendorsData?.items || [];
   const scores = scoresData || [];
   const mappings = mappingsData || [];
@@ -50,20 +47,7 @@ export function VendorsPage() {
     createdAt: s.createdAt,
   }));
 
-  const vendorData = vendors.map(v => ({
-    vendor: v,
-    score: vendorScoreRecords.find(s => s.vendorId === v.id),
-  })).filter((d): d is { vendor: Vendor; score: VendorScoreRecord } => !!d.score);
-
-  const avgScore = vendorData.length > 0
-    ? Math.round(vendorData.reduce((sum, d) => sum + d.score.score, 0) / vendorData.length)
-    : 0;
-
-  const topPerformer = vendorData.length > 0
-    ? vendorData.reduce((best, d) => d.score.score > (best?.score.score ?? 0) ? d : best, vendorData[0])
-    : null;
-
-  // Referral data
+  // Referral data — hooks must be called before any early returns
   const underperformers = useMemo(() =>
     detectUnderperformers(vendors, vendorScoreRecords, 80),
     [vendors, vendorScoreRecords]
@@ -85,6 +69,22 @@ export function VendorsPage() {
       return { ...mapping, property, vendor };
     });
   }, [mappings, properties, vendors]);
+
+  if (vendorsLoading || scoresLoading) return <LoadingSpinner />;
+  if (vendorsError) return <ErrorBanner message={vendorsErr?.message || 'Failed to load vendors'} onRetry={refetchVendors} />;
+
+  const vendorData = vendors.map(v => ({
+    vendor: v,
+    score: vendorScoreRecords.find(s => s.vendorId === v.id),
+  })).filter((d): d is { vendor: Vendor; score: VendorScoreRecord } => !!d.score);
+
+  const avgScore = vendorData.length > 0
+    ? Math.round(vendorData.reduce((sum, d) => sum + d.score.score, 0) / vendorData.length)
+    : 0;
+
+  const topPerformer = vendorData.length > 0
+    ? vendorData.reduce((best, d) => d.score.score > (best?.score.score ?? 0) ? d : best, vendorData[0])
+    : null;
 
   return (
     <div className="space-y-8">

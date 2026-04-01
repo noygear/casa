@@ -120,7 +120,7 @@ export function createApp() {
 
     <div class="footer">
       <a href="/api/health">Health Check</a> &nbsp;&middot;&nbsp;
-      Frontend: <a href="http://localhost:5173">localhost:5173</a>
+      Frontend: <a href="${frontendUrl}">${frontendUrl}</a>
     </div>
   </div>
 </body>

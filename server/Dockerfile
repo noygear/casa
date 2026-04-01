@@ -18,7 +18,7 @@ COPY server/prisma/ ./server/prisma/
 
 # Install dependencies and generate Prisma client
 WORKDIR /app/server
-RUN npm install
+RUN npm ci
 RUN npx prisma generate --schema=../prisma/schema.prisma
 RUN npx tsc
 

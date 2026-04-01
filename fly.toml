@@ -1,6 +1,6 @@
-# Fly.io configuration for Casa CRE API — develop
-app = "casa-cre-develop"
-primary_region = "dfw"
+# Fly.io configuration for Casa CRE API — production
+app = "casa-cre-prod"
+primary_region = "ord"
 
 [build]
   dockerfile = "server/Dockerfile"
@@ -36,4 +36,3 @@ primary_region = "dfw"
   memory = "1gb"
   cpu_kind = "shared"
   cpus = 1
-  memory_mb = 1024

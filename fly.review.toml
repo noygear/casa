@@ -1,11 +1,10 @@
-app = "casa-cre-review-template"
-primary_region = "iad"
+# Fly.io configuration for Casa CRE API — review/preview apps
+# The app name is overridden at deploy time via --app pr-<number>-casa-cre
+app = "pr-0-casa-cre"
+primary_region = "ord"
 
 [build]
   dockerfile = "server/Dockerfile"
-
-[deploy]
-  release_command = "node_modules/.bin/prisma migrate deploy --schema=./prisma/schema.prisma && node dist/server/prisma/seed.js"
 
 [env]
   NODE_ENV = "production"
