@@ -28,3 +28,6 @@ npm-debug.log*
 cookies.txt
 pjar.txt
 proxy_cookies.txt
+
+# Claude Code local settings
+.claude/settings.local.json

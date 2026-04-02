@@ -1,0 +1,2 @@
+-- Add directUrl to datasource for connection pooler compatibility
+-- No schema changes required

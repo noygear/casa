@@ -1,0 +1,61 @@
+name: fly-staging
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: fly-staging
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  deploy:
+    name: deploy casa-cre-staging
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_STAGING }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: deploy
+        id: deploy
+        run: flyctl deploy --remote-only --config fly.staging.toml --app casa-cre-staging
+
+      - name: comment on merged PR
+        if: always() && github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pulls } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              base: 'develop',
+              sort: 'updated',
+              direction: 'desc',
+              per_page: 10
+            });
+            const pr = pulls.find(p => p.merge_commit_sha === context.sha);
+            if (!pr) {
+              console.log('No merged PR found for commit', context.sha, '— skipping comment');
+              return;
+            }
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const deployed = '${{ steps.deploy.outcome }}' === 'success';
+            const body = deployed
+              ? `✅ Deployed to staging: https://casa-cre-staging.fly.dev\nCommit: \`${context.sha}\`\nRun: ${runUrl}`
+              : `❌ Staging deploy failed. Run: ${runUrl}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body
+            });

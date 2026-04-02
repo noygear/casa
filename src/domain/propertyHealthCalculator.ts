@@ -151,7 +151,7 @@ export function computeWeeklyVolume(
   weeks: number = 8
 ): { week: string; count: number; categories: Record<string, number> }[] {
   const now = new Date();
-  const result = [];
+  const result: { week: string; count: number; categories: Record<string, number> }[] = [];
 
   for (let i = weeks - 1; i >= 0; i--) {
     const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);

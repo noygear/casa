@@ -1,0 +1,73 @@
+name: validate
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: casa_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: install root dependencies
+        run: npm ci
+
+      - name: install server dependencies
+        run: cd server && npm ci
+
+      - name: generate prisma client
+        run: cd server && npx prisma generate
+
+      - name: require committed migration when schema changes
+        run: |
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q 'prisma/schema.prisma'; then
+            if ! git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q 'prisma/migrations/'; then
+              echo "Error: prisma/schema.prisma changed but no migration file was committed."
+              exit 1
+            fi
+          fi
+
+      - name: apply migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/casa_test
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/casa_test
+        run: npx prisma migrate deploy --schema=./prisma/schema.prisma
+
+      - name: lint
+        run: npm run lint
+
+      - name: build frontend
+        run: npm run build
+
+      - name: build server
+        run: cd server && npm run build

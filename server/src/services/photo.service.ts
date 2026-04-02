@@ -1,6 +1,6 @@
 import prisma from '../prisma.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
-import type { PhotoType } from '@prisma/client';
+import type { PhotoType } from '../../../src/types/index.js';
 
 interface UploadPhotoInput {
   workOrderId: string;
