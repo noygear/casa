@@ -71,14 +71,14 @@ enum PhotoType {
 // ── Users ────────────────────────────────────────────────────
 
 model User {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @db.Uuid
   email     String   @unique
   name      String
   role      UserRole
   passwordHash String?
   phone     String?
   avatarUrl String?
-  vendorId  String?
+  vendorId  String?  @db.Uuid
   vendor    Vendor?  @relation(fields: [vendorId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -96,7 +96,7 @@ model User {
 // ── Asset Hierarchy ──────────────────────────────────────────
 
 model Property {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid()) @db.Uuid
   name        String
   address     String
   city        String
@@ -123,8 +123,8 @@ model Property {
 }
 
 model Space {
-  id         String   @id @default(uuid())
-  propertyId String
+  id         String   @id @default(uuid()) @db.Uuid
+  propertyId String   @db.Uuid
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   name       String   // e.g. "Suite 200", "Lobby", "Parking Garage", "Roof"
   floor      Int?
@@ -144,7 +144,7 @@ model Space {
 // ── Vendors ──────────────────────────────────────────────────
 
 model Vendor {
-  id           String   @id @default(uuid())
+  id           String   @id @default(uuid()) @db.Uuid
   companyName  String
   contactEmail String
   contactPhone String?
@@ -168,7 +168,7 @@ model Vendor {
 // ── Work Orders (Core) ───────────────────────────────────────
 
 model WorkOrder {
-  id           String            @id @default(uuid())
+  id           String            @id @default(uuid()) @db.Uuid
   title        String
   description  String
   status       WorkOrderStatus   @default(open)
@@ -177,17 +177,17 @@ model WorkOrder {
   isInspection Boolean           @default(false)
 
   // Location
-  propertyId String
+  propertyId String   @db.Uuid
   property   Property @relation(fields: [propertyId], references: [id])
-  spaceId    String?
+  spaceId    String?  @db.Uuid
   space      Space?   @relation(fields: [spaceId], references: [id])
 
   // Assignment
-  createdById  String
+  createdById  String  @db.Uuid
   createdBy    User    @relation("CreatedBy", fields: [createdById], references: [id])
-  assignedToId String?
+  assignedToId String? @db.Uuid
   assignedTo   User?   @relation("AssignedTo", fields: [assignedToId], references: [id])
-  vendorId     String?
+  vendorId     String? @db.Uuid
   vendor       Vendor? @relation(fields: [vendorId], references: [id])
 
   // SLA tracking
@@ -201,7 +201,7 @@ model WorkOrder {
   cost Float?
 
   // Recurring link
-  recurringInstanceId String?            @unique
+  recurringInstanceId String?            @unique @db.Uuid
   recurringInstance   RecurringInstance?  @relation(fields: [recurringInstanceId], references: [id])
 
   createdAt DateTime @default(now())
@@ -222,8 +222,8 @@ model WorkOrder {
 }
 
 model WorkOrderPhoto {
-  id          String    @id @default(uuid())
-  workOrderId String
+  id          String    @id @default(uuid()) @db.Uuid
+  workOrderId String    @db.Uuid
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
   url           String    // CDN URL or base64 data URL
   type          PhotoType
@@ -239,10 +239,10 @@ model WorkOrderPhoto {
 }
 
 model WorkOrderAuditLog {
-  id          String   @id @default(uuid())
-  workOrderId String
+  id          String   @id @default(uuid()) @db.Uuid
+  workOrderId String   @db.Uuid
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
-  userId      String
+  userId      String   @db.Uuid
   user        User      @relation(fields: [userId], references: [id])
   fromStatus  String
   toStatus    String
@@ -257,10 +257,10 @@ model WorkOrderAuditLog {
 // ── Inspections ──────────────────────────────────────────────
 
 model InspectionReport {
-  id          String    @id @default(uuid())
-  workOrderId String
+  id          String    @id @default(uuid()) @db.Uuid
+  workOrderId String    @db.Uuid
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
-  inspectorId String
+  inspectorId String    @db.Uuid
   inspector   User      @relation(fields: [inspectorId], references: [id])
   passed      Boolean
   findings    String?
@@ -274,16 +274,16 @@ model InspectionReport {
 // ── Recurring / Preventative Maintenance ─────────────────────
 
 model RecurringTemplate {
-  id          String               @id @default(uuid())
+  id          String               @id @default(uuid()) @db.Uuid
   name        String
   description String
   category    WorkOrderCategory
   severity    Severity             @default(minor)
   frequency   MaintenanceFrequency
   customDays  Int?                 // For custom frequency
-  propertyId  String
-  spaceId     String?
-  vendorId    String?
+  propertyId  String               @db.Uuid
+  spaceId     String?              @db.Uuid
+  vendorId    String?              @db.Uuid
   isActive    Boolean              @default(true)
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
@@ -296,8 +296,8 @@ model RecurringTemplate {
 }
 
 model RecurringInstance {
-  id         String            @id @default(uuid())
-  templateId String
+  id         String            @id @default(uuid()) @db.Uuid
+  templateId String            @db.Uuid
   template   RecurringTemplate @relation(fields: [templateId], references: [id])
   dueDate    DateTime
   createdAt  DateTime          @default(now())
@@ -312,8 +312,8 @@ model RecurringInstance {
 // ── Vendor Scoring ───────────────────────────────────────────
 
 model VendorScoreRecord {
-  id           String   @id @default(uuid())
-  vendorId     String
+  id           String   @id @default(uuid()) @db.Uuid
+  vendorId     String   @db.Uuid
   vendor       Vendor   @relation(fields: [vendorId], references: [id])
   periodStart  DateTime
   periodEnd    DateTime
@@ -336,8 +336,8 @@ model VendorScoreRecord {
 // ── SLA Configuration ────────────────────────────────────────
 
 model SLAConfiguration {
-  id             String            @id @default(uuid())
-  propertyId     String
+  id             String            @id @default(uuid()) @db.Uuid
+  propertyId     String            @db.Uuid
   property       Property          @relation(fields: [propertyId], references: [id])
   category       WorkOrderCategory
   severity       Severity
@@ -353,11 +353,11 @@ model SLAConfiguration {
 // ── Preferred Vendor Mappings ────────────────────────────────
 
 model PreferredVendorMapping {
-  id         String            @id @default(uuid())
-  propertyId String
+  id         String            @id @default(uuid()) @db.Uuid
+  propertyId String            @db.Uuid
   property   Property          @relation(fields: [propertyId], references: [id])
   category   WorkOrderCategory
-  vendorId   String
+  vendorId   String            @db.Uuid
   vendor     Vendor            @relation(fields: [vendorId], references: [id])
   priority   Int               @default(1) // 1 = primary, 2 = backup
   createdAt  DateTime          @default(now())
@@ -370,7 +370,7 @@ model PreferredVendorMapping {
 // ── Token Revocation ─────────────────────────────────────────
 
 model RevokedToken {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @db.Uuid
   jti       String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
