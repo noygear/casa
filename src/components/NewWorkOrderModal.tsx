@@ -20,6 +20,7 @@ export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps)
   const [category, setCategory] = useState<WorkOrderCategory>('general');
   const [severity, setSeverity] = useState<Severity>('minor');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const properties = propertiesData?.items || [];
   const selectedProperty = properties.find(p => p.id === propertyId);
@@ -28,6 +29,7 @@ export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       await createWorkOrder.mutateAsync({
         title,
@@ -39,8 +41,13 @@ export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps)
       });
       onSubmit?.();
       onClose();
-    } catch (err) {
-      console.error('Failed to create work order:', err);
+    } catch (err: any) {
+      const data = err?.response?.data;
+      const issues: Array<{ path: string; message: string }> = data?.issues || [];
+      const detail = issues.length > 0
+        ? issues.map(i => `${i.path}: ${i.message}`).join('; ')
+        : data?.message || err?.message || 'Failed to submit work order. Please try again.';
+      setSubmitError(detail);
     } finally {
       setIsSubmitting(false);
     }
@@ -159,6 +166,12 @@ export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps)
               />
             </div>
           </div>
+
+          {submitError && (
+            <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+              {submitError}
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/5">
             <button
