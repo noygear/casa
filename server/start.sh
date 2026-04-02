@@ -30,18 +30,10 @@ echo "[startup] DATABASE_URL host: $(echo "$DATABASE_URL" | sed 's|.*@||;s|/.*||
 
 npx prisma migrate deploy --schema=./prisma/schema.prisma
 
-# Seed only if the database is empty (idempotent guard)
-USER_COUNT=$(node -e "
-const { PrismaClient } = require('./node_modules/@prisma/client');
-const p = new PrismaClient();
-p.user.count().then(n => { console.log(n); p.\$disconnect(); }).catch(() => { console.log(0); p.\$disconnect(); });
-")
-if [ "$USER_COUNT" = "0" ]; then
-  echo "[startup] database is empty — running seed..."
-  node dist/server/prisma/seed.js
-  echo "[startup] seed complete"
-else
-  echo "[startup] database already seeded ($USER_COUNT users) — skipping"
-fi
+# Always run seed — seed.ts auto-detects legacy non-UUID data and clears it,
+# then upserts all records. Safe to run on every startup.
+echo "[startup] running seed..."
+node dist/server/prisma/seed.js
+echo "[startup] seed complete"
 
 exec node dist/server/src/index.js

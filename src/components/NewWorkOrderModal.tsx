@@ -30,17 +30,15 @@ export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps)
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitError(null);
-    const payload = {
-      title,
-      description,
-      category,
-      severity,
-      propertyId,
-      spaceId: spaceId || null,
-    };
-    console.log('[NewWorkOrderModal] submitting payload:', JSON.stringify(payload));
     try {
-      await createWorkOrder.mutateAsync(payload);
+      await createWorkOrder.mutateAsync({
+        title,
+        description,
+        category,
+        severity,
+        propertyId,
+        spaceId: spaceId || null,
+      });
       onSubmit?.();
       onClose();
     } catch (err: any) {

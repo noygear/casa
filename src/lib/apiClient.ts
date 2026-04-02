@@ -11,9 +11,6 @@ const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status) {
-      console.log(`[apiClient] ${error.response.status} on ${error.config?.method?.toUpperCase()} ${error.config?.url}`);
-    }
     if (error.response?.status === 401) {
       const isAuthEndpoint = error.config?.url?.startsWith('/auth/');
       if (!isAuthEndpoint) {

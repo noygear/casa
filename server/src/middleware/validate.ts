@@ -10,7 +10,6 @@ export function validate(schema: ZodSchema, source: 'body' | 'query' | 'params' 
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        console.error('[validate] Zod validation failed on', source, JSON.stringify(req[source]), '\nIssues:', JSON.stringify(error.issues));
         next(new ValidationError(error));
       } else {
         next(error);
