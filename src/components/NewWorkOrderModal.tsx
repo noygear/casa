@@ -42,8 +42,12 @@ export function NewWorkOrderModal({ onClose, onSubmit }: NewWorkOrderModalProps)
       onSubmit?.();
       onClose();
     } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || 'Failed to submit work order. Please try again.';
-      setSubmitError(message);
+      const data = err?.response?.data;
+      const issues: Array<{ path: string; message: string }> = data?.issues || [];
+      const detail = issues.length > 0
+        ? issues.map(i => `${i.path}: ${i.message}`).join('; ')
+        : data?.message || err?.message || 'Failed to submit work order. Please try again.';
+      setSubmitError(detail);
     } finally {
       setIsSubmitting(false);
     }
