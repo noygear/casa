@@ -8,6 +8,7 @@ import { AssetManagerDashboardPage } from './pages/AssetManagerDashboardPage';
 import { WorkOrdersPage } from './pages/WorkOrdersPage';
 import { VendorsPage } from './pages/VendorsPage';
 import { PropertiesPage } from './pages/PropertiesPage';
+import { LandingPage } from './pages/LandingPage';
 import { SLACompliancePage } from './pages/SLACompliancePage';
 import { TenantMaintenanceHistoryPage } from './pages/TenantMaintenanceHistoryPage';
 
@@ -25,7 +26,7 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<LandingPage />} />
       <Route
         path="/login"
         element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
