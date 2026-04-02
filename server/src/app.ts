@@ -16,7 +16,7 @@ import recurringRoutes from './routes/recurring.routes.js';
 import vendorMappingRoutes from './routes/vendorMapping.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const STATIC_DIR = path.resolve(__dirname, '../../public');
+const STATIC_DIR = path.resolve(__dirname, '../../../public');
 
 export function createApp() {
   const app = express();
