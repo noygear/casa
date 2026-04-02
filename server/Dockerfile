@@ -49,6 +49,8 @@ WORKDIR /app
 COPY --from=builder /app/server/dist/ ./dist/
 COPY --from=builder /app/server/node_modules/ ./node_modules/
 COPY --from=builder /app/prisma/ ./prisma/
+COPY server/start.sh ./start.sh
+RUN chmod +x ./start.sh
 
 # Copy built frontend
 COPY --from=frontend-builder /app/dist/ ./public/
@@ -61,4 +63,4 @@ ENV PORT=3001
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=./prisma/schema.prisma && node dist/server/src/index.js"]
+CMD ["./start.sh"]
