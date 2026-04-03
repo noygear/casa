@@ -2,7 +2,7 @@
 
 This document describes how Casa CRE moves code from local development to staging, production, and pull request preview environments.
 
-It also captures the current Fly.io topology as of 2026-04-01 so contributors can reason about the live environment without reverse-engineering the repo or dashboard.
+It also captures the current Fly.io topology as of 2026-04-03 so contributors can reason about the live environment without reverse-engineering the repo or dashboard.
 
 ## Deployment authority
 
@@ -163,29 +163,29 @@ This structure gives the team a clean path:
 
 #### Preview database
 
-- Database app: `casa-cre-preview-db`
+- Database cluster: `casa-cre-preview-db`
 - Type: unmanaged Fly Postgres (`postgres-flex`)
 - Region: `dfw`
 - Shape:
   - single-node
   - shared CPU 1x
   - 256 MB memory
+- Database isolation: each PR gets its own database within the cluster, named `pr_<number>_casa_cre`
 
-#### Why preview uses a shared unmanaged database
+#### Why preview uses per-PR databases on a shared cluster
 
-- Preview environments must be cheap enough to create on every PR.
-- A dedicated database per PR would be operationally clean but too expensive for the current phase.
-- A single shared preview DB keeps the review loop lightweight and fast.
+- A dedicated database per PR gives full migration isolation without the cost of a separate Postgres cluster per PR.
+- Each PR's database is created when the PR is opened and dropped when it is closed.
+- The shared cluster keeps provisioning instant and cost near zero.
+- Migration state is never carried over between PR deploys — every deploy runs against a clean schema.
 
-#### Important preview tradeoff
+#### Preview migration behavior
 
-Preview apps do **not** run Prisma migrations automatically.
+Preview apps run `prisma migrate deploy` on every startup, the same as staging and production.
 
-That is deliberate. A shared preview database plus automatic schema mutation on every PR would let branches interfere with each other. Instead:
-
-- the shared preview DB is bootstrapped once with the current schema and seed data
-- preview apps reuse that shared state
-- schema-heavy changes should be validated more carefully in staging before promotion
+- Each PR database starts empty and migrations run from scratch on first boot.
+- Re-deploying an existing PR re-runs migrations against the same PR database (safe because migrations are idempotent).
+- The seed runs after migrations on every startup.
 
 ## GitHub Actions workflows
 
@@ -216,6 +216,7 @@ That is deliberate. A shared preview database plus automatic schema mutation on 
 - Behavior:
   - requires a committed Prisma migration whenever `prisma/schema.prisma` changes
   - applies committed migrations against disposable Postgres in CI
+  - re-runs `migrate deploy` a second time to verify idempotency — catches statements like `ALTER TYPE ADD VALUE` without `IF NOT EXISTS` before they reach any deployed database
   - runs `lint`, frontend `build`, and server `build`
 
 ### Branch protection expectation
@@ -231,9 +232,13 @@ That is deliberate. A shared preview database plus automatic schema mutation on 
 - Token secret: `FLY_API_TOKEN_REVIEW`
 - App naming:
   - `pr-<number>-casa-cre`
+- Database naming:
+  - `pr_<number>_casa_cre` (on `casa-cre-preview-db` cluster)
+- Database lifecycle:
+  - created when the PR is opened
+  - dropped when the PR is closed
 - Additional GitHub repository secrets required:
-  - `PREVIEW_DATABASE_URL`
-  - `PREVIEW_DIRECT_URL`
+  - `PREVIEW_DATABASE_URL` — connection string pointing at the `casa-cre-preview-db` cluster; the workflow replaces the database name segment to build the per-PR URL
   - `REVIEW_JWT_SECRET`
 
 ## Maintainer runbook
@@ -266,9 +271,18 @@ These are the canonical deployment entry points for maintainers.
   - PR closed
 - App naming:
   - `pr-<number>-casa-cre`
+- Database naming:
+  - `pr_<number>_casa_cre` (on `casa-cre-preview-db` cluster)
 - Behavior:
+  - the workflow creates the per-PR database if it does not exist, then deploys
+  - migrations and seed run on every startup
   - the workflow comments the preview URL on the PR
-  - the workflow comments whether preview teardown succeeded or failed when the PR closes
+  - on PR close, the workflow destroys the Fly app and drops the per-PR database
+  - the workflow comments whether teardown succeeded or failed
+
+#### Recovering a stuck migration on preview
+
+If a preview app enters a crash loop with Prisma error `P3009`, `start.sh` will print the exact command needed to clear the stuck record before exiting. Connect to the cluster and run the printed `DELETE FROM _prisma_migrations ...` statement, then restart the machine.
 
 ## Secrets model
 
@@ -292,8 +306,7 @@ Examples:
 - `FLY_API_TOKEN_PROD`
 - `FLY_API_TOKEN_STAGING`
 - `FLY_API_TOKEN_REVIEW`
-- `PREVIEW_DATABASE_URL`
-- `PREVIEW_DIRECT_URL`
+- `PREVIEW_DATABASE_URL` — base connection string for the `casa-cre-preview-db` cluster; the review workflow derives the per-PR database URL from this
 - `REVIEW_JWT_SECRET`
 
 ### Secret handling rules
@@ -337,7 +350,8 @@ To verify the whole chain without touching core application logic:
 ## Current architectural tradeoffs
 
 - Production uses managed Postgres (shared `talent-os-prod-db` cluster), while staging and preview use unmanaged Postgres to reduce cost.
-- Preview apps share one database, which is cost-efficient but not isolated.
+- Preview apps each have an isolated database on the shared `casa-cre-preview-db` cluster. Each database is created and dropped automatically by the review workflow.
+- All migrations are written to be idempotent (`ALTER TYPE ADD VALUE IF NOT EXISTS`). The CI validation workflow runs migrations twice to enforce this.
 - The application uses JWT cookie auth suitable for internal prototype use.
 - The `casa-cre-db` production database was pre-created on the existing managed cluster; connection details are set as Fly app secrets.
 
@@ -345,7 +359,6 @@ To verify the whole chain without touching core application logic:
 
 The current setup is intentionally pragmatic, not final. The next likely upgrades are:
 
-- move preview DB isolation from one shared database to one schema per PR
 - decide whether staging should stay suspendable or keep one machine warm
 - add stronger auth and reviewer access controls if the audience expands
 - evaluate whether production should graduate to its own dedicated managed cluster

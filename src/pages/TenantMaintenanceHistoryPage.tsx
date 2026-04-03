@@ -59,7 +59,7 @@ function exportToCSV(workOrders: WorkOrder[]) {
 
 export function TenantMaintenanceHistoryPage() {
   const { user } = useAuth();
-  const { data, isLoading, isError, error, refetch } = useWorkOrders({ createdById: user?.id, limit: 200 });
+  const { data, isLoading, isError, error, refetch } = useWorkOrders({ createdById: user?.id, limit: 100 });
   const [selectedWO, setSelectedWO] = useState<WorkOrder | null>(null);
   const [statusFilter, setStatusFilter] = useState<WorkOrderStatus | ''>('');
   const [categoryFilter, setCategoryFilter] = useState<WorkOrderCategory | ''>('');

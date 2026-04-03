@@ -102,7 +102,7 @@ export function useUploadPhoto() {
     mutationFn: async ({ workOrderId, ...photo }: {
       workOrderId: string;
       url: string;
-      type: 'before' | 'after' | 'completion' | 'start';
+      type: 'before' | 'after' | 'completion' | 'start' | 'invoice';
       caption?: string;
       gpsLatitude?: number;
       gpsLongitude?: number;

@@ -123,3 +123,28 @@ npm run preview   # Preview production build
 - **Simplicity First**: Make every change as simple as possible. Impact minimal code.
 - **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
 - **Minimal Impact**: Changes should only touch what is necessary. Avoid introducing bugs.
+
+## Hard-Won Rules
+
+### Error handling scope
+Error handlers in `errorHandler.ts` must be **generic** — they handle errors that can arise anywhere. Never add a handler that converts an error to a specific HTTP status unless that conversion is correct for every possible call site. Auth-specific errors belong in the auth middleware, not in the global handler.
+
+When a production error needs to be mapped to 401 (or any status), ask: "would it be wrong to return 401 if this same error occurred during a work order create, a vendor query, or a report?" If yes, the handler is too broad — push the conversion upstream to where the error has the right meaning.
+
+### PostgreSQL enum migrations must use IF NOT EXISTS
+`ALTER TYPE ... ADD VALUE` is **non-transactional** in PostgreSQL. If the migration fails after the `ADD VALUE` runs (for any reason), the enum value is persisted in the DB but Prisma marks the migration failed. Re-running it throws "already exists" and Prisma enters a P3009 crash loop.
+
+Every enum migration in this repo must use `IF NOT EXISTS`:
+```sql
+ALTER TYPE "MyEnum" ADD VALUE IF NOT EXISTS 'new_value';
+```
+
+The CI idempotency check (`validate.yml` runs `migrate deploy` twice) will catch violations before they reach any deployed database.
+
+### Trace error propagation before writing a fix
+Before writing a fix for a misclassified error, trace the full propagation path:
+1. Where is the error thrown?
+2. Which catch blocks does it pass through on the way to the error handler?
+3. Is the fix applied at a point in the chain that will actually see this error?
+
+In this codebase: Prisma errors thrown inside a service are caught by Express's `next(err)` mechanism and reach `errorHandler.ts` directly — they do **not** pass through middleware catch blocks (like `authenticate`'s try/catch). Middleware catch blocks only see errors thrown within that middleware's own `try` body.

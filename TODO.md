@@ -1,5 +1,14 @@
 # TODO
 
+## Security
+
+- [ ] **Validate `photo.url` format before storing — prevent `javascript:` URI injection**
+  `uploadPhotoSchema` accepts `url: z.string().min(1)` with no format check. A direct API
+  call could store a `javascript:` URI that renders as an anchor in the invoice download UI
+  (`WorkOrderDetailModal.tsx`). Fix: add `z.string().url()` to the schema, or allowlist
+  URLs to the CDN origin (Cloudinary/S3) once cloud photo storage is wired up.
+  See `server/src/validation/workOrder.schema.ts` and `server/src/validation/common.schema.ts`.
+
 ## Technical Debt
 
 - [ ] **Properly type implicit-any callback parameters in server services**

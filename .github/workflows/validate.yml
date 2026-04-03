@@ -63,6 +63,15 @@ jobs:
           DIRECT_URL: postgresql://postgres:postgres@localhost:5432/casa_test
         run: npx prisma migrate deploy --schema=./prisma/schema.prisma
 
+      - name: verify migrations are idempotent
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/casa_test
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/casa_test
+        run: |
+          # Re-running migrate deploy on an already-migrated DB must succeed cleanly.
+          # Catches non-idempotent statements (e.g. ADD VALUE without IF NOT EXISTS).
+          npx prisma migrate deploy --schema=./prisma/schema.prisma
+
       - name: lint
         run: npm run lint
 

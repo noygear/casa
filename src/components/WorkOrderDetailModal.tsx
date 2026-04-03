@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useVendors } from '../hooks/useVendors';
 import { useUpdateWorkOrder, useUploadPhoto } from '../hooks/useWorkOrders';
 import { useGPSCapture } from '../hooks/useGPSCapture';
-import { X, MapPin, Building2, User, Clock, Camera, ChevronRight, Shield, History, DollarSign, ImagePlus, FileText, UserCheck, Navigation, Loader2, AlertTriangle } from 'lucide-react';
+import { X, MapPin, Building2, User, Clock, Camera, ChevronRight, Shield, History, DollarSign, ImagePlus, FileText, UserCheck, Navigation, Loader2, AlertTriangle, Download } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface WorkOrderDetailModalProps {
@@ -52,6 +52,11 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
   const afterFileInputRef = useRef<HTMLInputElement>(null);
   const [transitionError, setTransitionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Invoice state
+  const [invoicePreview, setInvoicePreview] = useState<string | null>(null);
+  const [invoiceFileName, setInvoiceFileName] = useState('');
+  const invoiceFileInputRef = useRef<HTMLInputElement>(null);
 
   // GPS & start photo state
   const [showStartPhotoForm, setShowStartPhotoForm] = useState(false);
@@ -105,6 +110,19 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
     }
   };
 
+  const handleInvoiceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setTransitionError('Invoice file must be under 5 MB');
+      return;
+    }
+    setInvoiceFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => setInvoicePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   const handleAssignSubmit = async () => {
     setTransitionError(null);
     setIsSubmitting(true);
@@ -151,6 +169,16 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
             gpsLongitude: completionGps.position.longitude,
             gpsAccuracy: completionGps.position.accuracy,
           } : {}),
+        });
+      }
+
+      // Upload invoice if attached
+      if (invoicePreview) {
+        await uploadPhoto.mutateAsync({
+          workOrderId: workOrder.id,
+          url: invoicePreview,
+          type: 'invoice',
+          caption: invoiceFileName || 'Invoice',
         });
       }
 
@@ -366,12 +394,30 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
           {workOrder.photos && workOrder.photos.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Evidence Photos ({workOrder.photos.length})
+                Evidence & Documents ({workOrder.photos.length})
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {workOrder.photos.map(photo => (
                   <div key={photo.id} className="relative rounded-xl overflow-hidden border border-white/10 group">
-                    <img src={photo.url} alt={photo.caption || 'Evidence'} className="w-full h-32 object-cover transition-transform duration-500 group-hover:scale-105" />
+                    {photo.type === 'invoice' ? (
+                      <a
+                        href={photo.url}
+                        download={photo.caption || 'invoice'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex flex-col items-center justify-center h-32 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
+                      >
+                        <FileText size={32} className="text-amber-400 mb-2" />
+                        <span className="text-xs text-amber-400 font-medium truncate max-w-[90%]">
+                          {photo.caption || 'Invoice'}
+                        </span>
+                        <span className="text-[10px] text-gray-500 mt-1 flex items-center gap-1">
+                          <Download size={10} /> Download
+                        </span>
+                      </a>
+                    ) : (
+                      <img src={photo.url} alt={photo.caption || 'Evidence'} className="w-full h-32 object-cover transition-transform duration-500 group-hover:scale-105" />
+                    )}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-8">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
@@ -583,6 +629,33 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                           className="w-full pl-8 pr-3 py-2 rounded-lg bg-black/40 border border-white/10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-cre-500/50"
                         />
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Invoice (Optional)</label>
+                      <input
+                        type="file"
+                        accept=".pdf,image/jpeg,image/png"
+                        className="hidden"
+                        ref={invoiceFileInputRef}
+                        onChange={handleInvoiceFileChange}
+                      />
+                      <button
+                        onClick={() => invoiceFileInputRef.current?.click()}
+                        className={`w-full h-[38px] flex items-center justify-center gap-2 px-3 rounded-lg border text-sm transition-all ${
+                          invoicePreview
+                            ? 'border-amber-500/30 text-amber-400 bg-amber-500/5'
+                            : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        {invoicePreview ? (
+                          <span className="font-medium truncate">{invoiceFileName}</span>
+                        ) : (
+                          <>
+                            <FileText size={16} />
+                            Attach Invoice
+                          </>
+                        )}
+                      </button>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>

@@ -26,6 +26,9 @@ jobs:
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_REVIEW }}
       APP_NAME: pr-${{ github.event.pull_request.number }}-casa-cre
+      # Each PR gets its own database on the shared cluster, named after the app.
+      # Underscores required — hyphens are not valid in Postgres identifiers.
+      DB_NAME: pr_${{ github.event.pull_request.number }}_casa_cre
     steps:
       - uses: actions/checkout@v4
 
@@ -36,11 +39,16 @@ jobs:
 
       - name: set app secrets
         run: |
+          # Build DATABASE_URL from the base secret, replacing only the database
+          # name segment while preserving any query parameters (e.g. sslmode).
+          BASE_URL="${{ secrets.PREVIEW_DATABASE_URL }}"
+          DB_URL=$(echo "$BASE_URL" | sed -E "s|(/[^/?]*)([?#].*)?$|/$DB_NAME\2|")
           flyctl secrets set \
-            DATABASE_URL="${{ secrets.PREVIEW_DATABASE_URL }}" \
-            DIRECT_URL="${{ secrets.PREVIEW_DIRECT_URL }}" \
+            DATABASE_URL="$DB_URL" \
+            DIRECT_URL="$DB_URL" \
             JWT_SECRET="${{ secrets.REVIEW_JWT_SECRET }}" \
             FRONTEND_URL="https://$APP_NAME.fly.dev" \
+            CREATE_DB_IF_MISSING=true \
             --app "$APP_NAME"
 
       - name: deploy preview app
@@ -64,12 +72,21 @@ jobs:
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_REVIEW }}
       APP_NAME: pr-${{ github.event.pull_request.number }}-casa-cre
+      DB_NAME: pr_${{ github.event.pull_request.number }}_casa_cre
     steps:
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: destroy preview app
         id: destroy
         run: flyctl apps destroy "$APP_NAME" --yes
+        continue-on-error: true
+
+      - name: drop per-PR database
+        timeout-minutes: 2
+        run: |
+          echo "DROP DATABASE IF EXISTS \"$DB_NAME\" WITH (FORCE);" \
+            | flyctl postgres connect -a casa-cre-preview-db --database postgres \
+            2>/dev/null || true
         continue-on-error: true
 
       - name: comment teardown result on PR

@@ -28,7 +28,68 @@ fi
 
 echo "[startup] DATABASE_URL host: $(echo "$DATABASE_URL" | sed 's|.*@||;s|/.*||')"
 
-npx prisma migrate deploy --schema=./prisma/schema.prisma
+# Per-PR preview environments: create the database if it does not yet exist.
+# Runs inside the container over Fly's private network — no WireGuard SSH tunnel
+# needed. Connects to the maintenance 'postgres' DB on the same host, issues
+# CREATE DATABASE, and ignores "already exists" (code 42P04).
+if [ "$CREATE_DB_IF_MISSING" = "true" ] && [ -n "$DATABASE_URL" ]; then
+  echo "[startup] ensuring per-PR database exists..."
+  node - <<'ENSURE_DB'
+const { Client } = require('pg');
+const url = process.env.DATABASE_URL || '';
+const dbName = (url.match(/\/([^/?]+)(\?|$)/) || [])[1];
+if (!dbName || dbName === 'postgres') process.exit(0);
+const adminUrl = url.replace(/\/[^/?]+(\?|$)/, '/postgres$1');
+const client = new Client({ connectionString: adminUrl });
+client.connect()
+  .then(() => client.query(`CREATE DATABASE "${dbName}"`))
+  .catch(e => { if (e.code !== '42P04') throw e; })
+  .then(() => { console.log(`[startup] database "${dbName}" ready`); return client.end(); })
+  .catch(e => { console.warn('[startup] ensure-db warning (continuing):', e.message); });
+ENSURE_DB
+fi
+
+# Run prisma migrate deploy with retries for transient DB unavailability.
+# Preview DB VMs can be slow to accept connections on first boot; retry up to
+# 5 times with 5-second back-off before giving up.
+# Detect a previously failed migration (P3009) and surface a clear message
+# rather than crash-looping. Operators must resolve via:
+#   fly postgres connect -a <db-app> -- psql -c \
+#     "DELETE FROM _prisma_migrations WHERE migration_name='<name>' AND finished_at IS NULL AND rolled_back_at IS NULL;"
+migrate_attempt=0
+migrate_max=5
+while true; do
+  migrate_attempt=$((migrate_attempt + 1))
+  migrate_output=$(npx prisma migrate deploy --schema=./prisma/schema.prisma 2>&1)
+  migrate_exit=$?
+  echo "$migrate_output"
+  # Retry on transient connection errors (P1001, P1017) up to migrate_max times.
+  if [ $migrate_exit -ne 0 ] && echo "$migrate_output" | grep -qE "P1001|P1017"; then
+    if [ $migrate_attempt -lt $migrate_max ]; then
+      echo "[startup] migrate: transient connection error (attempt $migrate_attempt/$migrate_max), retrying in 5s..."
+      sleep 5
+      continue
+    else
+      echo "[startup] migrate: gave up after $migrate_max attempts"
+    fi
+  fi
+  break
+done
+if echo "$migrate_output" | grep -q "P3009"; then
+  failed_name=$(echo "$migrate_output" | grep -oE 'The `[^`]+` migration' | head -1 | sed "s/The \`//;s/\` migration//")
+  echo ""
+  echo "[startup] ERROR: A migration is stuck in a failed state."
+  echo "[startup] To fix, connect to the database and run:"
+  if [ -n "$failed_name" ]; then
+    echo "[startup]   DELETE FROM _prisma_migrations WHERE migration_name='$failed_name' AND finished_at IS NULL AND rolled_back_at IS NULL;"
+  else
+    echo "[startup]   (Could not parse migration name — check the output above and resolve manually.)"
+  fi
+  exit 1
+fi
+if [ $migrate_exit -ne 0 ]; then
+  exit $migrate_exit
+fi
 
 # Always run seed — seed.ts auto-detects legacy non-UUID data and clears it,
 # then upserts all records. Safe to run on every startup.

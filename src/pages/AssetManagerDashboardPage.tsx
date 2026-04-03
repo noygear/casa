@@ -17,13 +17,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { useIssueDetection } from '../hooks/useIssueDetection';
-
-// Budget data has no backend endpoint yet — keep as local constant
-const PROPERTY_BUDGETS: { propertyId: string; annualBudget: number }[] = [
-  { propertyId: 'p-001', annualBudget: 150000 },
-  { propertyId: 'p-002', annualBudget: 200000 },
-  { propertyId: 'p-003', annualBudget: 80000 },
-];
+import { MOCK_PROPERTY_BUDGETS as PROPERTY_BUDGETS } from '../data/mockData';
 
 export function AssetManagerDashboardPage() {
   const { user } = useAuth();

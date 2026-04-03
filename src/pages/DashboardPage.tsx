@@ -19,13 +19,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useIssueDetection } from '../hooks/useIssueDetection';
-
-// Budget data has no backend endpoint yet — keep as local constant
-const PROPERTY_BUDGETS: { propertyId: string; annualBudget: number }[] = [
-  { propertyId: 'p-001', annualBudget: 150000 },
-  { propertyId: 'p-002', annualBudget: 200000 },
-  { propertyId: 'p-003', annualBudget: 80000 },
-];
+import { MOCK_PROPERTY_BUDGETS as PROPERTY_BUDGETS } from '../data/mockData';
 
 type DashboardTab = 'properties' | 'vendors' | 'workorders';
 

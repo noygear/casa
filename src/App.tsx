@@ -29,11 +29,12 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route
         path="/login"
-        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+        element={isAuthenticated ? <Navigate to={user?.role === 'vendor' ? '/work-orders' : '/dashboard'} replace /> : <LoginPage />}
       />
       <Route path="/dashboard" element={
         <ProtectedRoute>
-          {user?.role === 'tenant' ? <TenantDashboardPage /> :
+          {user?.role === 'vendor' ? <Navigate to="/work-orders" replace /> :
+           user?.role === 'tenant' ? <TenantDashboardPage /> :
            user?.role === 'asset_manager' ? <AssetManagerDashboardPage /> :
            <DashboardPage />}
         </ProtectedRoute>
@@ -43,7 +44,7 @@ export default function App() {
       <Route path="/properties" element={<ProtectedRoute><PropertiesPage /></ProtectedRoute>} />
       <Route path="/sla-compliance" element={<ProtectedRoute><SLACompliancePage /></ProtectedRoute>} />
       <Route path="/maintenance-history" element={<ProtectedRoute><TenantMaintenanceHistoryPage /></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? (user?.role === 'vendor' ? '/work-orders' : '/dashboard') : '/'} replace />} />
     </Routes>
   );
 }
