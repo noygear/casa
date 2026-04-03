@@ -1,3 +1,3 @@
 -- AlterEnum
-ALTER TYPE "PhotoType" ADD VALUE 'invoice';
-ALTER TYPE "PhotoType" ADD VALUE 'additional';
+ALTER TYPE "PhotoType" ADD VALUE IF NOT EXISTS 'invoice';
+ALTER TYPE "PhotoType" ADD VALUE IF NOT EXISTS 'additional';
