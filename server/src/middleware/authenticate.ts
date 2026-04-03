@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import prisma from '../prisma.js';
 import { UnauthorizedError } from '../errors/AuthError.js';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 interface JwtPayload {
   sub: string;
   email: string;
@@ -24,6 +26,14 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     }
 
     const payload = jwt.verify(token, secret) as JwtPayload;
+
+    if (!UUID_RE.test(payload.sub)) {
+      throw new UnauthorizedError('Invalid session. Please log in again.');
+    }
+
+    if (payload.vendorId !== null && !UUID_RE.test(payload.vendorId)) {
+      throw new UnauthorizedError('Invalid session. Please log in again.');
+    }
 
     // Check if token has been revoked
     const revoked = await prisma.revokedToken.findUnique({
