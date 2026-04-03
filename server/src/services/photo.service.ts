@@ -10,6 +10,7 @@ interface UploadPhotoInput {
   gpsLatitude?: number;
   gpsLongitude?: number;
   gpsAccuracy?: number;
+  gpsCapturedAt?: string;
 }
 
 export async function uploadPhoto(input: UploadPhotoInput) {
@@ -30,7 +31,7 @@ export async function uploadPhoto(input: UploadPhotoInput) {
       gpsLatitude: input.gpsLatitude,
       gpsLongitude: input.gpsLongitude,
       gpsAccuracy: input.gpsAccuracy,
-      gpsCapturedAt: input.gpsLatitude ? new Date() : undefined,
+      gpsCapturedAt: input.gpsCapturedAt ? new Date(input.gpsCapturedAt) : (input.gpsLatitude ? new Date() : undefined),
     },
   });
 }

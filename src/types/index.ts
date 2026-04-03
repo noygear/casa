@@ -21,7 +21,7 @@ export type WorkOrderCategory =
 
 export type MaintenanceFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually' | 'custom';
 
-export type PhotoType = 'before' | 'after' | 'completion' | 'start' | 'invoice';
+export type PhotoType = 'before' | 'after' | 'completion' | 'start' | 'invoice' | 'additional';
 
 export interface GPSCoordinate {
   latitude: number;

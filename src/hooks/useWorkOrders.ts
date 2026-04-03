@@ -102,11 +102,12 @@ export function useUploadPhoto() {
     mutationFn: async ({ workOrderId, ...photo }: {
       workOrderId: string;
       url: string;
-      type: 'before' | 'after' | 'completion' | 'start' | 'invoice';
+      type: 'before' | 'after' | 'completion' | 'start' | 'invoice' | 'additional';
       caption?: string;
       gpsLatitude?: number;
       gpsLongitude?: number;
       gpsAccuracy?: number;
+      gpsCapturedAt?: string;
     }) => {
       const { data } = await apiClient.post(`/work-orders/${workOrderId}/photos`, photo);
       return data;

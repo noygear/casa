@@ -41,4 +41,5 @@ export const uploadPhotoSchema = z.object({
   gpsLatitude: z.number().optional(),
   gpsLongitude: z.number().optional(),
   gpsAccuracy: z.number().optional(),
+  gpsCapturedAt: z.string().datetime().optional(),
 });
