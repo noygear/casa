@@ -54,7 +54,6 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Invoice state
-  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [invoicePreview, setInvoicePreview] = useState<string | null>(null);
   const [invoiceFileName, setInvoiceFileName] = useState('');
   const invoiceFileInputRef = useRef<HTMLInputElement>(null);
@@ -118,7 +117,6 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
       setTransitionError('Invoice file must be under 5 MB');
       return;
     }
-    setInvoiceFile(file);
     setInvoiceFileName(file.name);
     const reader = new FileReader();
     reader.onload = () => setInvoicePreview(reader.result as string);
