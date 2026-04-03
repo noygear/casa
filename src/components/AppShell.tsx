@@ -33,7 +33,7 @@ export function AppShell({ children }: AppShellProps) {
 
   const filteredNavItems = NAV_ITEMS.filter(item => {
     if (user?.role === 'tenant') return ['/dashboard', '/work-orders', '/maintenance-history'].includes(item.to);
-    if (user?.role === 'vendor') return ['/dashboard', '/work-orders'].includes(item.to);
+    if (user?.role === 'vendor') return ['/work-orders'].includes(item.to);
     return true; // AM & PM see everything
   });
 
