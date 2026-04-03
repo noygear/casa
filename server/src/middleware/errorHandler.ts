@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library.js';
 import { AppError } from '../errors/AppError.js';
 import { ValidationError } from '../errors/ValidationError.js';
 import { TransitionError } from '../errors/TransitionError.js';
@@ -34,15 +33,6 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
       message: err.message,
       fromStatus: err.fromStatus,
       toStatus: err.toStatus,
-    });
-    return;
-  }
-
-  // Prisma UUID parse error — stale token with a non-UUID user ID
-  if (err instanceof PrismaClientKnownRequestError && err.code === 'P2023') {
-    res.status(401).json({
-      error: 'UNAUTHORIZED',
-      message: 'Invalid session. Please log in again.',
     });
     return;
   }
