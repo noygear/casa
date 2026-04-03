@@ -45,7 +45,7 @@ client.connect()
   .then(() => client.query(`CREATE DATABASE "${dbName}"`))
   .catch(e => { if (e.code !== '42P04') throw e; })
   .then(() => { console.log(`[startup] database "${dbName}" ready`); return client.end(); })
-  .catch(e => { console.error('[startup] ensure-db failed:', e.message); process.exit(1); });
+  .catch(e => { console.warn('[startup] ensure-db warning (continuing):', e.message); });
 ENSURE_DB
 fi
 
