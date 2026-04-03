@@ -41,6 +41,7 @@ jobs:
             DIRECT_URL="${{ secrets.PREVIEW_DIRECT_URL }}" \
             JWT_SECRET="${{ secrets.REVIEW_JWT_SECRET }}" \
             FRONTEND_URL="https://$APP_NAME.fly.dev" \
+            RESET_DB=true \
             --app "$APP_NAME"
 
       - name: deploy preview app
