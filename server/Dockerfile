@@ -50,7 +50,7 @@ COPY --from=builder /app/server/dist/ ./dist/
 COPY --from=builder /app/server/node_modules/ ./node_modules/
 COPY --from=builder /app/prisma/ ./prisma/
 COPY server/start.sh ./start.sh
-RUN chmod +x ./start.sh
+RUN sed -i 's/\r$//' ./start.sh && chmod +x ./start.sh
 
 # Copy built frontend
 COPY --from=frontend-builder /app/dist/ ./public/
