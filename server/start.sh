@@ -49,13 +49,32 @@ client.connect()
 ENSURE_DB
 fi
 
+# Run prisma migrate deploy with retries for transient DB unavailability.
+# Preview DB VMs can be slow to accept connections on first boot; retry up to
+# 5 times with 5-second back-off before giving up.
 # Detect a previously failed migration (P3009) and surface a clear message
 # rather than crash-looping. Operators must resolve via:
 #   fly postgres connect -a <db-app> -- psql -c \
 #     "DELETE FROM _prisma_migrations WHERE migration_name='<name>' AND finished_at IS NULL AND rolled_back_at IS NULL;"
-migrate_output=$(npx prisma migrate deploy --schema=./prisma/schema.prisma 2>&1)
-migrate_exit=$?
-echo "$migrate_output"
+migrate_attempt=0
+migrate_max=5
+while true; do
+  migrate_attempt=$((migrate_attempt + 1))
+  migrate_output=$(npx prisma migrate deploy --schema=./prisma/schema.prisma 2>&1)
+  migrate_exit=$?
+  echo "$migrate_output"
+  # Retry on transient connection errors (P1001, P1017) up to migrate_max times.
+  if [ $migrate_exit -ne 0 ] && echo "$migrate_output" | grep -qE "P1001|P1017"; then
+    if [ $migrate_attempt -lt $migrate_max ]; then
+      echo "[startup] migrate: transient connection error (attempt $migrate_attempt/$migrate_max), retrying in 5s..."
+      sleep 5
+      continue
+    else
+      echo "[startup] migrate: gave up after $migrate_max attempts"
+    fi
+  fi
+  break
+done
 if echo "$migrate_output" | grep -q "P3009"; then
   failed_name=$(echo "$migrate_output" | grep -oE 'The `[^`]+` migration' | head -1 | sed "s/The \`//;s/\` migration//")
   echo ""
