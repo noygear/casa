@@ -28,6 +28,27 @@ fi
 
 echo "[startup] DATABASE_URL host: $(echo "$DATABASE_URL" | sed 's|.*@||;s|/.*||')"
 
+# Per-PR preview environments: create the database if it does not yet exist.
+# Runs inside the container over Fly's private network — no WireGuard SSH tunnel
+# needed. Connects to the maintenance 'postgres' DB on the same host, issues
+# CREATE DATABASE, and ignores "already exists" (code 42P04).
+if [ "$CREATE_DB_IF_MISSING" = "true" ] && [ -n "$DATABASE_URL" ]; then
+  echo "[startup] ensuring per-PR database exists..."
+  node - <<'ENSURE_DB'
+const { Client } = require('pg');
+const url = process.env.DATABASE_URL || '';
+const dbName = (url.match(/\/([^/?]+)(\?|$)/) || [])[1];
+if (!dbName || dbName === 'postgres') process.exit(0);
+const adminUrl = url.replace(/\/[^/?]+(\?|$)/, '/postgres$1');
+const client = new Client({ connectionString: adminUrl });
+client.connect()
+  .then(() => client.query(`CREATE DATABASE "${dbName}"`))
+  .catch(e => { if (e.code !== '42P04') throw e; })
+  .then(() => { console.log(`[startup] database "${dbName}" ready`); return client.end(); })
+  .catch(e => { console.error('[startup] ensure-db failed:', e.message); process.exit(1); });
+ENSURE_DB
+fi
+
 # Detect a previously failed migration (P3009) and surface a clear message
 # rather than crash-looping. Operators must resolve via:
 #   fly postgres connect -a <db-app> -- psql -c \
