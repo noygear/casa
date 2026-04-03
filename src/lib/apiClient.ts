@@ -17,6 +17,18 @@ apiClient.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+
+    // Extract detailed error message from backend response
+    const data = error.response?.data;
+    if (data) {
+      let detail = data.message || error.message;
+      if (data.issues?.length) {
+        const fields = data.issues.map((i: { path: string; message: string }) => `${i.path}: ${i.message}`).join(', ');
+        detail = `${detail} (${fields})`;
+      }
+      error.message = detail;
+    }
+
     return Promise.reject(error);
   }
 );
