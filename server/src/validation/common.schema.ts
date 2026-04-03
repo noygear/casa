@@ -24,4 +24,4 @@ export const userRoleEnum = z.enum(['asset_manager', 'property_manager', 'vendor
 
 export const frequencyEnum = z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'annually', 'custom']);
 
-export const photoTypeEnum = z.enum(['before', 'after', 'completion', 'start']);
+export const photoTypeEnum = z.enum(['before', 'after', 'completion', 'start', 'invoice']);

@@ -66,6 +66,7 @@ enum PhotoType {
   after
   completion
   start
+  invoice
 }
 
 // ── Users ────────────────────────────────────────────────────
