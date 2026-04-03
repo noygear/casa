@@ -47,9 +47,10 @@ jobs:
 
       - name: set app secrets
         run: |
-          # Build DATABASE_URL from the base secret, replacing the database name
+          # Build DATABASE_URL from the base secret, replacing only the database
+          # name segment while preserving any query parameters (e.g. sslmode).
           BASE_URL="${{ secrets.PREVIEW_DATABASE_URL }}"
-          DB_URL="${BASE_URL%/*}/$DB_NAME"
+          DB_URL=$(echo "$BASE_URL" | sed -E "s|(/[^/?]*)([?#].*)?$|/$DB_NAME\2|")
           flyctl secrets set \
             DATABASE_URL="$DB_URL" \
             DIRECT_URL="$DB_URL" \

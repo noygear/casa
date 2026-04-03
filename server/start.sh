@@ -38,9 +38,13 @@ echo "$migrate_output"
 if echo "$migrate_output" | grep -q "P3009"; then
   failed_name=$(echo "$migrate_output" | grep -oE 'The `[^`]+` migration' | head -1 | sed "s/The \`//;s/\` migration//")
   echo ""
-  echo "[startup] ERROR: Migration '$failed_name' is stuck in a failed state."
+  echo "[startup] ERROR: A migration is stuck in a failed state."
   echo "[startup] To fix, connect to the database and run:"
-  echo "[startup]   DELETE FROM _prisma_migrations WHERE migration_name='$failed_name' AND finished_at IS NULL AND rolled_back_at IS NULL;"
+  if [ -n "$failed_name" ]; then
+    echo "[startup]   DELETE FROM _prisma_migrations WHERE migration_name='$failed_name' AND finished_at IS NULL AND rolled_back_at IS NULL;"
+  else
+    echo "[startup]   (Could not parse migration name — check the output above and resolve manually.)"
+  fi
   exit 1
 fi
 if [ $migrate_exit -ne 0 ]; then
