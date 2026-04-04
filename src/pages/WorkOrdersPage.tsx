@@ -297,8 +297,8 @@ export function WorkOrdersPage() {
                 : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
             }`}
           >
-            {autoAssign ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-            {autoAssign ? <Zap size={12} /> : null}
+            {autoAssign ? <ToggleRight size={16} className="text-emerald-400" /> : <ToggleLeft size={16} className="text-gray-500" />}
+            {autoAssign ? <Zap size={12} className="text-emerald-400" /> : null}
             Auto-assign to preferred vendors
           </button>
           <div className="relative">
@@ -310,7 +310,7 @@ export function WorkOrdersPage() {
               <Info size={14} />
             </button>
             {showAutoAssignTooltip && (
-              <div className="absolute left-6 top-1/2 -translate-y-1/2 z-10 w-64 p-3 rounded-lg bg-cre-950 border border-white/10 text-xs text-gray-300 shadow-xl">
+              <div className="absolute left-6 top-1/2 -translate-y-1/2 z-50 w-64 p-3 rounded-lg bg-cre-950 border border-white/10 text-xs text-gray-300 shadow-xl">
                 When enabled, new work orders are automatically assigned to your preferred vendor for that category and property. Configure preferred vendors in the Vendors tab.
               </div>
             )}
