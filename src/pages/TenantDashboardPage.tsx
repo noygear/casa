@@ -76,13 +76,20 @@ export function TenantDashboardPage() {
                   </div>
 
                   {/* Flow Progress Bar */}
-                  <div className="w-full md:w-auto min-w-[300px]">
-                    <div className="flex justify-between mb-4 px-1">
+                  <div className="w-full md:w-auto min-w-[300px] relative">
+                    {/* Connecting line — positioned absolutely behind bubbles */}
+                    <div className="absolute top-[28px] left-4 right-4 h-1 bg-white/5 rounded-full -z-10 overflow-hidden">
+                      <div
+                        className="absolute top-0 left-0 h-full bg-emerald-500 transition-all duration-700"
+                        style={{ width: `${(Math.max(0, ts.step - 1) / 3) * 100}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between px-1">
                       {['Created', 'Assigned', 'Completed', 'Verified'].map((stepName, stepIdx) => {
                         const isCurrent = ts.step === stepIdx + 1;
                         const isPast = ts.step > stepIdx + 1;
                         return (
-                          <div key={stepName} className="flex flex-col items-center gap-2">
+                          <div key={stepName} className="flex flex-col items-center gap-3">
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
                               isPast ? 'bg-emerald-500 text-white' :
                               isCurrent ? ts.bg + ' ' + ts.color : 'bg-white/5 text-gray-500'
@@ -97,13 +104,6 @@ export function TenantDashboardPage() {
                           </div>
                         );
                       })}
-                    </div>
-                    {/* Connecting line behind circles */}
-                    <div className="relative h-1 bg-white/5 rounded-full mt-[-38px] mx-4 -z-10 overflow-hidden">
-                      <div
-                        className="absolute top-0 left-0 h-full bg-emerald-500 transition-all duration-700"
-                        style={{ width: `${(Math.max(0, ts.step - 1) / 3) * 100}%` }}
-                      />
                     </div>
                   </div>
                 </div>
