@@ -99,7 +99,7 @@ export function TenantDashboardPage() {
                       })}
                     </div>
                     {/* Connecting line behind circles */}
-                    <div className="relative h-1 bg-white/5 rounded-full mt-[-28px] mx-4 -z-10 overflow-hidden">
+                    <div className="relative h-1 bg-white/5 rounded-full mt-[-22px] mx-4 -z-10 overflow-hidden">
                       <div
                         className="absolute top-0 left-0 h-full bg-emerald-500 transition-all duration-700"
                         style={{ width: `${(Math.max(0, ts.step - 1) / 3) * 100}%` }}
