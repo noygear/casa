@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ROLE_LABELS } from '../types';
 import {
   LayoutDashboard, ClipboardList, Building2, Users,
-  LogOut, ChevronLeft, Menu, History, X
+  LogOut, ChevronLeft, Menu, History, X, FileText, CreditCard
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { FeedbackButton } from './FeedbackButton';
@@ -12,12 +12,14 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { to: string; label: string; icon: typeof LayoutDashboard; disabled?: boolean }[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/work-orders', label: 'Work Orders', icon: ClipboardList },
   { to: '/maintenance-history', label: 'History', icon: History },
   { to: '/properties', label: 'Properties', icon: Building2 },
   { to: '/vendors', label: 'Vendors', icon: Users },
+  { to: '#lease', label: 'Lease', icon: FileText, disabled: true },
+  { to: '#payments', label: 'Payments', icon: CreditCard, disabled: true },
 ];
 
 export function AppShell({ children }: AppShellProps) {
@@ -32,9 +34,9 @@ export function AppShell({ children }: AppShellProps) {
   }, [location.pathname]);
 
   const filteredNavItems = NAV_ITEMS.filter(item => {
-    if (user?.role === 'tenant') return ['/dashboard', '/work-orders', '/maintenance-history'].includes(item.to);
+    if (user?.role === 'tenant') return ['/dashboard', '/work-orders', '/maintenance-history'].includes(item.to) || item.disabled;
     if (user?.role === 'vendor') return ['/work-orders'].includes(item.to);
-    return true; // AM & PM see everything
+    return !item.disabled; // AM & PM see everything except disabled tenant-only items
   });
 
   const sidebarContent = (
@@ -54,6 +56,18 @@ export function AppShell({ children }: AppShellProps) {
       <nav className="flex-1 px-3 py-4 space-y-1">
         {filteredNavItems.map(item => {
           const Icon = item.icon;
+          if (item.disabled) {
+            return (
+              <div
+                key={item.to}
+                className="sidebar-link opacity-40 cursor-default pointer-events-none"
+              >
+                <Icon size={18} />
+                <span>{item.label}</span>
+                <span className="ml-auto text-[9px] uppercase tracking-wider text-gray-500">Soon</span>
+              </div>
+            );
+          }
           const isActive = location.pathname === item.to;
           return (
             <NavLink
@@ -157,6 +171,23 @@ export function AppShell({ children }: AppShellProps) {
         <nav className="flex-1 px-3 py-4 space-y-1">
           {filteredNavItems.map(item => {
             const Icon = item.icon;
+            if (item.disabled) {
+              return (
+                <div
+                  key={item.to}
+                  className={`sidebar-link opacity-40 cursor-default pointer-events-none ${collapsed ? 'justify-center px-0' : ''}`}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <Icon size={18} />
+                  {!collapsed && (
+                    <>
+                      <span>{item.label}</span>
+                      <span className="ml-auto text-[9px] uppercase tracking-wider text-gray-500">Soon</span>
+                    </>
+                  )}
+                </div>
+              );
+            }
             const isActive = location.pathname === item.to;
             return (
               <NavLink
