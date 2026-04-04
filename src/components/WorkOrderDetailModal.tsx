@@ -8,8 +8,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useVendors } from '../hooks/useVendors';
 import { useUpdateWorkOrder, useUploadPhoto } from '../hooks/useWorkOrders';
 import { useGPSCapture } from '../hooks/useGPSCapture';
-import { X, MapPin, Building2, User, Clock, Camera, ChevronRight, Shield, History, DollarSign, ImagePlus, FileText, UserCheck, Navigation, Loader2, AlertTriangle, Download } from 'lucide-react';
+import { X, MapPin, Building2, User, Clock, Camera, ChevronRight, Shield, History, DollarSign, ImagePlus, FileText, UserCheck, Navigation, Loader2, AlertTriangle, Download, Lock } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { CameraCapture } from './CameraCapture';
 
 interface WorkOrderDetailModalProps {
   workOrder: WorkOrder;
@@ -44,12 +45,9 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
   const [targetStatus, setTargetStatus] = useState<WorkOrder['status'] | null>(null);
   const [memo, setMemo] = useState('');
   const [cost, setCost] = useState('');
-  const [beforePhotoFile, setBeforePhotoFile] = useState<File | null>(null);
+  const [completionPhotoPreview, setCompletionPhotoPreview] = useState<string | null>(null);
   const [beforePhotoPreview, setBeforePhotoPreview] = useState<string | null>(null);
-  const [afterPhotoFile, setAfterPhotoFile] = useState<File | null>(null);
   const [afterPhotoPreview, setAfterPhotoPreview] = useState<string | null>(null);
-  const beforeFileInputRef = useRef<HTMLInputElement>(null);
-  const afterFileInputRef = useRef<HTMLInputElement>(null);
   const [transitionError, setTransitionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -58,13 +56,20 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
   const [invoiceFileName, setInvoiceFileName] = useState('');
   const invoiceFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Camera overlay state
+  const [showCamera, setShowCamera] = useState<'start' | 'completion' | 'before' | 'after' | 'additional' | null>(null);
+
   // GPS & start photo state
   const [showStartPhotoForm, setShowStartPhotoForm] = useState(false);
-  const [startPhotoFile, setStartPhotoFile] = useState<File | null>(null);
   const [startPhotoPreview, setStartPhotoPreview] = useState<string | null>(null);
-  const startFileInputRef = useRef<HTMLInputElement>(null);
   const gps = useGPSCapture();
   const completionGps = useGPSCapture();
+  const additionalGps = useGPSCapture();
+
+  // Additional photos state
+  const [showAdditionalForm, setShowAdditionalForm] = useState(false);
+  const [additionalPhotoPreview, setAdditionalPhotoPreview] = useState<string | null>(null);
+  const [additionalCaption, setAdditionalCaption] = useState('');
 
   // Set default vendor when vendors load
   useEffect(() => {
@@ -73,16 +78,6 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
     }
   }, [vendors, assignVendorId]);
 
-  const handleStartFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setStartPhotoFile(file);
-      const reader = new FileReader();
-      reader.onload = () => setStartPhotoPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
   useEffect(() => {
     if (showStartPhotoForm) gps.requestPosition();
   }, [showStartPhotoForm]);
@@ -90,24 +85,13 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
     if (showCompletionForm) completionGps.requestPosition();
   }, [showCompletionForm]);
 
-  const handleBeforeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setBeforePhotoFile(file);
-      const reader = new FileReader();
-      reader.onload = () => setBeforePhotoPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleAfterFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setAfterPhotoFile(file);
-      const reader = new FileReader();
-      reader.onload = () => setAfterPhotoPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
+  const handleCameraCapture = (dataUrl: string) => {
+    if (showCamera === 'start') setStartPhotoPreview(dataUrl);
+    else if (showCamera === 'completion') setCompletionPhotoPreview(dataUrl);
+    else if (showCamera === 'before') setBeforePhotoPreview(dataUrl);
+    else if (showCamera === 'after') setAfterPhotoPreview(dataUrl);
+    else if (showCamera === 'additional') setAdditionalPhotoPreview(dataUrl);
+    setShowCamera(null);
   };
 
   const handleInvoiceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -144,32 +128,35 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
     setTransitionError(null);
     setIsSubmitting(true);
     try {
-      // Upload photos first
-      if (beforePhotoPreview) {
-        await uploadPhoto.mutateAsync({
-          workOrderId: workOrder.id,
-          url: beforePhotoPreview,
-          type: 'before',
-          caption: 'Before Service',
-          ...(completionGps.position ? {
-            gpsLatitude: completionGps.position.latitude,
-            gpsLongitude: completionGps.position.longitude,
-            gpsAccuracy: completionGps.position.accuracy,
-          } : {}),
-        });
-      }
-      if (afterPhotoPreview) {
-        await uploadPhoto.mutateAsync({
-          workOrderId: workOrder.id,
-          url: afterPhotoPreview,
-          type: 'after',
-          caption: memo || 'After Service',
-          ...(completionGps.position ? {
-            gpsLatitude: completionGps.position.latitude,
-            gpsLongitude: completionGps.position.longitude,
-            gpsAccuracy: completionGps.position.accuracy,
-          } : {}),
-        });
+      const gpsData = completionGps.position ? {
+        gpsLatitude: completionGps.position.latitude,
+        gpsLongitude: completionGps.position.longitude,
+        gpsAccuracy: completionGps.position.accuracy,
+        gpsCapturedAt: completionGps.position.capturedAt,
+      } : {};
+
+      // For inspection work orders: upload before + after photos
+      if (workOrder.isInspection) {
+        if (beforePhotoPreview) {
+          await uploadPhoto.mutateAsync({
+            workOrderId: workOrder.id, url: beforePhotoPreview,
+            type: 'before', caption: 'Before Service', ...gpsData,
+          });
+        }
+        if (afterPhotoPreview) {
+          await uploadPhoto.mutateAsync({
+            workOrderId: workOrder.id, url: afterPhotoPreview,
+            type: 'after', caption: memo || 'After Service', ...gpsData,
+          });
+        }
+      } else {
+        // Standard: upload single completion photo
+        if (completionPhotoPreview) {
+          await uploadPhoto.mutateAsync({
+            workOrderId: workOrder.id, url: completionPhotoPreview,
+            type: 'completion', caption: memo || 'Work completed', ...gpsData,
+          });
+        }
       }
 
       // Upload invoice if attached
@@ -212,6 +199,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
             gpsLatitude: gps.position.latitude,
             gpsLongitude: gps.position.longitude,
             gpsAccuracy: gps.position.accuracy,
+            gpsCapturedAt: gps.position.capturedAt,
           } : {}),
         });
       }
@@ -390,7 +378,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
             </div>
           )}
 
-          {/* Evidence Photos */}
+          {/* Evidence & Documents */}
           {workOrder.photos && workOrder.photos.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
@@ -421,6 +409,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-8">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
+                          <Lock size={8} className="text-gray-500" />
                           <span className="text-xs font-medium text-white capitalize">{photo.type}</span>
                           {photo.gps && (
                             <span className="inline-flex items-center gap-0.5 text-[9px] text-emerald-400" title={`${photo.gps.latitude.toFixed(4)}, ${photo.gps.longitude.toFixed(4)} (±${Math.round(photo.gps.accuracy)}m)`}>
@@ -435,6 +424,109 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Additional Photos Section */}
+          {['in_progress', 'needs_review', 'closed'].includes(workOrder.status) &&
+           user && ['vendor', 'property_manager', 'asset_manager'].includes(user.role) &&
+           !showCompletionForm && !showStartPhotoForm && (
+            <div>
+              {!showAdditionalForm ? (
+                <button
+                  onClick={() => { setShowAdditionalForm(true); additionalGps.requestPosition(); }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                >
+                  <ImagePlus size={16} />
+                  Add Supplementary Photos
+                </button>
+              ) : (
+                <div className="glass-card border-white/10 p-5 bg-white/[0.02]">
+                  <h4 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
+                    <ImagePlus size={16} className="text-cre-400" /> Supplementary Photo
+                  </h4>
+                  <div className="space-y-4">
+                    <button
+                      onClick={() => setShowCamera('additional')}
+                      className={`w-full h-[60px] flex items-center justify-center gap-2 px-3 rounded-lg border text-sm transition-all overflow-hidden relative ${additionalPhotoPreview ? 'border-cre-500/30' : 'bg-white/5 border-white/10 border-dashed text-gray-400 hover:text-white hover:bg-white/10'}`}
+                    >
+                      {additionalPhotoPreview ? (
+                        <>
+                          <div className="absolute inset-0">
+                            <img src={additionalPhotoPreview} alt="Preview" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
+                          </div>
+                          <span className="relative z-10 text-cre-400 font-medium">Photo Captured — Tap to Retake</span>
+                        </>
+                      ) : (
+                        <>
+                          <Camera size={20} />
+                          <span>Take Photo</span>
+                        </>
+                      )}
+                    </button>
+
+                    {(() => {
+                      const status = gpsStatusLabel(additionalGps);
+                      const Icon = status.icon;
+                      return (
+                        <div className={`flex items-center gap-2 text-xs ${status.color}`}>
+                          <Icon size={14} className={additionalGps.isLoading ? 'animate-spin' : ''} />
+                          <span>{status.text}</span>
+                        </div>
+                      );
+                    })()}
+
+                    <input
+                      type="text"
+                      value={additionalCaption}
+                      onChange={(e) => setAdditionalCaption(e.target.value)}
+                      placeholder="Caption (optional)"
+                      className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-cre-500/50"
+                    />
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={async () => {
+                          if (!additionalPhotoPreview) return;
+                          setIsSubmitting(true);
+                          try {
+                            await uploadPhoto.mutateAsync({
+                              workOrderId: workOrder.id,
+                              url: additionalPhotoPreview,
+                              type: 'additional',
+                              caption: additionalCaption || 'Supplementary photo',
+                              ...(additionalGps.position ? {
+                                gpsLatitude: additionalGps.position.latitude,
+                                gpsLongitude: additionalGps.position.longitude,
+                                gpsAccuracy: additionalGps.position.accuracy,
+                                gpsCapturedAt: additionalGps.position.capturedAt,
+                              } : {}),
+                            });
+                            setAdditionalPhotoPreview(null);
+                            setAdditionalCaption('');
+                            setShowAdditionalForm(false);
+                            additionalGps.reset();
+                          } catch (err: any) {
+                            setTransitionError(err.message || 'Upload failed');
+                          } finally {
+                            setIsSubmitting(false);
+                          }
+                        }}
+                        disabled={!additionalPhotoPreview || isSubmitting}
+                        className="flex-1 px-4 py-2.5 rounded-xl bg-cre-500 text-white text-sm font-semibold hover:bg-cre-600 transition-all disabled:opacity-50"
+                      >
+                        {isSubmitting ? 'Uploading...' : 'Upload Photo'}
+                      </button>
+                      <button
+                        onClick={() => { setShowAdditionalForm(false); setAdditionalPhotoPreview(null); setAdditionalCaption(''); additionalGps.reset(); }}
+                        className="px-4 py-2.5 rounded-xl bg-white/5 text-gray-300 text-sm font-medium hover:bg-white/10 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -543,16 +635,8 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
 
                   <div>
                     <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Arrival Photo</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      ref={startFileInputRef}
-                      onChange={handleStartFileChange}
-                    />
                     <button
-                      onClick={() => startFileInputRef.current?.click()}
+                      onClick={() => setShowCamera('start')}
                       className={`w-full h-[60px] flex items-center justify-center gap-2 px-3 rounded-lg border text-sm transition-all overflow-hidden relative ${startPhotoPreview ? 'border-cre-500/30' : 'bg-white/5 border-white/10 border-dashed text-gray-400 hover:text-white hover:bg-white/10'}`}
                     >
                       {startPhotoPreview ? (
@@ -560,7 +644,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                           <div className="absolute inset-0">
                             <img src={startPhotoPreview} alt="Start photo preview" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
                           </div>
-                          <span className="relative z-10 text-cre-400 font-medium">Arrival Photo Attached</span>
+                          <span className="relative z-10 text-cre-400 font-medium">Photo Captured — Tap to Retake</span>
                         </>
                       ) : (
                         <>
@@ -580,13 +664,13 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={handleStartPhotoSubmit}
-                      disabled={!startPhotoFile || isSubmitting}
+                      disabled={!startPhotoPreview || isSubmitting}
                       className="flex-1 px-4 py-2.5 rounded-xl bg-cre-500 text-white text-sm font-semibold hover:bg-cre-600 transition-all disabled:opacity-50"
                     >
                       {isSubmitting ? 'Starting...' : 'Start Work'}
                     </button>
                     <button
-                      onClick={() => { setShowStartPhotoForm(false); gps.reset(); }}
+                      onClick={() => { setShowStartPhotoForm(false); setStartPhotoPreview(null); gps.reset(); }}
                       className="px-4 py-2.5 rounded-xl bg-white/5 text-gray-300 text-sm font-medium hover:bg-white/10 transition-all"
                     >
                       Cancel
@@ -657,52 +741,77 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                         )}
                       </button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                    {workOrder.isInspection ? (
+                      /* Inspection: require both before + after photos via camera */
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Before Photo</label>
+                          <button
+                            onClick={() => setShowCamera('before')}
+                            className={`w-full h-[38px] flex items-center justify-center gap-2 px-3 rounded-lg border text-sm transition-all overflow-hidden relative ${beforePhotoPreview ? 'border-cre-500/30' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                          >
+                            {beforePhotoPreview ? (
+                              <>
+                                <div className="absolute inset-0">
+                                  <img src={beforePhotoPreview} alt="Preview Before" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
+                                </div>
+                                <span className="relative z-10 text-cre-400 font-medium">Captured — Retake</span>
+                              </>
+                            ) : (
+                              <>
+                                <Camera size={16} />
+                                Take Photo
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">After Photo</label>
+                          <button
+                            onClick={() => setShowCamera('after')}
+                            className={`w-full h-[38px] flex items-center justify-center gap-2 px-3 rounded-lg border text-sm transition-all overflow-hidden relative ${afterPhotoPreview ? 'border-emerald-500/30' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                          >
+                            {afterPhotoPreview ? (
+                              <>
+                                <div className="absolute inset-0">
+                                  <img src={afterPhotoPreview} alt="Preview After" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
+                                </div>
+                                <span className="relative z-10 text-emerald-400 font-medium">Captured — Retake</span>
+                              </>
+                            ) : (
+                              <>
+                                <Camera size={16} />
+                                Take Photo
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Standard: single mandatory completion photo via camera */
                       <div>
-                        <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Before Photo</label>
-                        <input type="file" accept="image/*" className="hidden" ref={beforeFileInputRef} onChange={handleBeforeFileChange} />
+                        <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">Completion Photo</label>
                         <button
-                          onClick={() => beforeFileInputRef.current?.click()}
-                          className={`w-full h-[38px] flex items-center justify-center gap-2 px-3 rounded-lg border text-sm transition-all overflow-hidden relative ${beforePhotoPreview ? 'border-cre-500/30' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                          onClick={() => setShowCamera('completion')}
+                          className={`w-full h-[60px] flex items-center justify-center gap-2 px-3 rounded-lg border text-sm transition-all overflow-hidden relative ${completionPhotoPreview ? 'border-cre-500/30' : 'bg-white/5 border-white/10 border-dashed text-gray-400 hover:text-white hover:bg-white/10'}`}
                         >
-                          {beforePhotoPreview ? (
+                          {completionPhotoPreview ? (
                             <>
                               <div className="absolute inset-0">
-                                <img src={beforePhotoPreview} alt="Preview Before" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
+                                <img src={completionPhotoPreview} alt="Completion preview" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
                               </div>
-                              <span className="relative z-10 text-cre-400 font-medium">Before Attached</span>
+                              <span className="relative z-10 text-cre-400 font-medium">Photo Captured — Tap to Retake</span>
                             </>
                           ) : (
                             <>
-                              <ImagePlus size={16} />
-                              Upload
+                              <Camera size={20} />
+                              <span>Take Completion Photo</span>
                             </>
                           )}
                         </button>
                       </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-2">After Photo</label>
-                        <input type="file" accept="image/*" className="hidden" ref={afterFileInputRef} onChange={handleAfterFileChange} />
-                        <button
-                          onClick={() => afterFileInputRef.current?.click()}
-                          className={`w-full h-[38px] flex items-center justify-center gap-2 px-3 rounded-lg border text-sm transition-all overflow-hidden relative ${afterPhotoPreview ? 'border-emerald-500/30' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
-                        >
-                          {afterPhotoPreview ? (
-                            <>
-                              <div className="absolute inset-0">
-                                <img src={afterPhotoPreview} alt="Preview After" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
-                              </div>
-                              <span className="relative z-10 text-emerald-400 font-medium">After Attached</span>
-                            </>
-                          ) : (
-                            <>
-                              <ImagePlus size={16} />
-                              Upload
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
+                    )}
                   </div>
 
                   {(() => {
@@ -724,7 +833,7 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={handleVendorSubmit}
-                      disabled={!memo || (!beforePhotoFile && !afterPhotoFile) || isSubmitting || !!(workOrder.isInspection && targetStatus === 'needs_review' && (!beforePhotoFile || !afterPhotoFile))}
+                      disabled={!memo || isSubmitting || (workOrder.isInspection ? (!beforePhotoPreview || !afterPhotoPreview) : !completionPhotoPreview)}
                       className="flex-1 px-4 py-2.5 rounded-xl bg-cre-500 text-white text-sm font-semibold hover:bg-cre-600 transition-all disabled:opacity-50"
                     >
                       {isSubmitting ? 'Submitting...' : `Submit Record & ${STATUS_LABELS[targetStatus as keyof typeof STATUS_LABELS]}`}
@@ -783,6 +892,28 @@ export function WorkOrderDetailModal({ workOrder, onClose }: WorkOrderDetailModa
           )}
         </div>
       </div>
+
+      {/* Camera Capture Overlay */}
+      {showCamera && (
+        <CameraCapture
+          onCapture={handleCameraCapture}
+          onCancel={() => setShowCamera(null)}
+          gpsLabel={(() => {
+            const g = showCamera === 'start' ? gps
+              : showCamera === 'additional' ? additionalGps
+              : completionGps;
+            const s = gpsStatusLabel(g);
+            return s.text;
+          })()}
+          gpsColor={(() => {
+            const g = showCamera === 'start' ? gps
+              : showCamera === 'additional' ? additionalGps
+              : completionGps;
+            const s = gpsStatusLabel(g);
+            return s.color;
+          })()}
+        />
+      )}
     </div>
   );
 }
