@@ -96,16 +96,29 @@ export function FeedbackButton() {
 
   return (
     <>
-      {/* Floating Button */}
+      {/* Floating Button — full FAB on desktop, slim edge tab on mobile */}
       {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-cre-500 to-cre-600 text-white text-sm font-medium shadow-lg shadow-cre-500/25 hover:shadow-cre-500/40 hover:scale-105 transition-all duration-200"
-          id="feedback-button"
-        >
-          <MessageSquarePlus size={18} />
-          Feedback
-        </button>
+        <>
+          {/* Desktop: full rounded button */}
+          <button
+            onClick={() => setIsOpen(true)}
+            className="hidden md:flex fixed bottom-6 right-6 z-40 items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-cre-500 to-cre-600 text-white text-sm font-medium shadow-lg shadow-cre-500/25 hover:shadow-cre-500/40 hover:scale-105 transition-all duration-200"
+            id="feedback-button"
+          >
+            <MessageSquarePlus size={18} />
+            Feedback
+          </button>
+          {/* Mobile: slim vertical edge tab */}
+          <button
+            onClick={() => setIsOpen(true)}
+            className="md:hidden fixed right-0 top-1/2 -translate-y-1/2 z-40 flex items-center justify-center w-7 py-3 rounded-l-lg bg-cre-600/90 text-white shadow-lg shadow-black/20 transition-all duration-200 active:bg-cre-500"
+            id="feedback-button-mobile"
+          >
+            <span className="text-[9px] font-bold uppercase tracking-widest" style={{ writingMode: 'vertical-rl' }}>
+              Feedback
+            </span>
+          </button>
+        </>
       )}
 
       {/* Modal */}
